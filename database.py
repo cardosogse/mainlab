@@ -6,39 +6,83 @@ from supabase import create_client
 
 # --- CONFIGURACIÓN ---
 DB_NAME = "licencias.db"
-# Asegúrate de que tus secretos en Streamlit tengan estos nombres exactos
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 # --- FUNCIONES DE SUPABASE (Nube) ---
 def guardar_progreso(username, datos):
     try:
-        supabase.table("usuarios").insert({
-            "username": username, 
-            "progreso": str(datos)
-        }).execute()
+        supabase.table("usuarios").insert({"username": username, "progreso": str(datos)}).execute()
         return True
-    except Exception as e:
-        return False
+    except Exception: return False
 
 def obtener_progreso(username):
     try:
         response = supabase.table("usuarios").select("progreso").eq("username", username).execute()
-        if response.data:
-            return response.data[0]["progreso"]
-        return None
-    except Exception:
-        return None
+        return response.data[0]["progreso"] if response.data else None
+    except Exception: return None
 
-# --- FUNCIONES DE LICENCIAS (SQLite Local) ---
+# --- FUNCIONES DE LICENCIAS (SQLITE - LO QUE TU APP NECESITA) ---
 def inicializar_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+    # Tabla de licencias
     c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso 
                  (token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
                   score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT)''')
+    # Tabla para contraseñas de admin (que tu app pide)
+    c.execute('''CREATE TABLE IF NOT EXISTS admin_config (key TEXT PRIMARY KEY, value TEXT)''')
+    # Valor inicial si no existe
+    c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', 'admin123')")
     conn.commit()
     conn.close()
 
+def validar_token(token):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT * FROM tokens_acceso WHERE token = ? AND en_uso = 0", (token,))
+    res = c.fetchone()
+    if res:
+        c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
+        conn.commit()
+        conn.close()
+        return True, "Token Válido"
+    conn.close()
+    return False, "Token no registrado o en uso."
+
+def obtener_datos_usuario(token):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT score_puntos, vidas, modulo_actual FROM tokens_acceso WHERE token = ?", (token,))
+    res = c.fetchone()
+    conn.close()
+    return res if res else (0, 3, 0)
+
+def generar_token(dias):
+    token = f"MAIN-{datetime.date.today().strftime('%y%m%d')}"
+    fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("INSERT INTO tokens_acceso VALUES (?, 0, ?, 0, 3, '1')", (token, fecha_exp))
+    conn.commit()
+    conn.close()
+    return token
+
+def obtener_password_admin():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT value FROM admin_config WHERE key = 'password'")
+    res = c.fetchone()
+    conn.close()
+    return res[0] if res else "admin123"
+
+def actualizar_password_admin(nueva_pass):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("UPDATE admin_config SET value = ? WHERE key = 'password'", (nueva_pass,))
+    conn.commit()
+    conn.close()
+
+# --- FUNCIONES DE MANTENIMIENTO ---
 def liberar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -62,42 +106,4 @@ def listar_todos_los_tokens():
     c.execute("SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual FROM tokens_acceso")
     filas = c.fetchall()
     conn.close()
-    
-    datos_limpios = []
-    for f in filas:
-        token, en_uso, f_exp, pts, vds, mod = f
-        try:
-            date_obj = datetime.datetime.strptime(f_exp, "%Y-%m-%d").date()
-            dias_restantes = (date_obj - datetime.date.today()).days
-            dias_str = f"{dias_restantes} días" if dias_restantes >= 0 else "Expirado"
-        except:
-            dias_str = "Indefinido"
-        
-        estado_uso = "En uso" if en_uso else "Libre"
-        datos_limpios.append((token, estado_uso, dias_str, pts, vds, f"Módulo {mod}"))
-    return datos_limpios
-
-def sincronizar_progreso_db(token, nuevos_puntos, modulo_destino):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (nuevos_puntos, modulo_destino, token))
-    conn.commit()
-    conn.close()
-
-def descontar_vida_db(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET vidas = max(0, vidas - 1) WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
-
-def otorgar_tiempo_extra_db(token, dias_adicionales=7):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
-    res = c.fetchone()
-    if res:
-        nueva_fecha = datetime.datetime.strptime(res[0], "%Y-%m-%d").date() + timedelta(days=dias_adicionales)
-        c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (nueva_fecha.strftime("%Y-%m-%d"), token))
-    conn.commit()
-    conn.close()
+    return filas
