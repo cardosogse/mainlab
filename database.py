@@ -4,9 +4,22 @@ from datetime import timedelta
 import streamlit as st
 from supabase import create_client
 
-# --- CONFIGURACIÓN ---
-DB_NAME = "licencias.db"
-supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+# --- 1. CARGA SEGURA DE CONFIGURACIONES ---
+try:
+    SUPABASE_URL = st.secrets["supabase"]["SUPABASE_URL"]
+    SUPABASE_KEY = st.secrets["supabase"]["SUPABASE_KEY"]
+    DB_NAME = st.secrets["config"]["DB_NAME"]
+    ADMIN_PASSWORD = st.secrets["config"]["ADMIN_PASSWORD"]
+except KeyError as e:
+    st.error(f"Error crítico: Falta la configuración {e} en los Secrets.")
+    st.stop()
+
+# --- 2. INICIALIZACIÓN DE SUPABASE ---
+try:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception as e:
+    st.error(f"Error conectando a Supabase: {e}")
+    st.stop()
 
 # --- FUNCIONES DE SUPABASE ---
 def guardar_progreso(username, datos):
@@ -26,10 +39,11 @@ def inicializar_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso 
-                 (token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
-                  score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT)''')
+                  (token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
+                   score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS admin_config (key TEXT PRIMARY KEY, value TEXT)''')
-    c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', 'admin123')")
+    # Nota: Aquí usamos nuestra nueva ADMIN_PASSWORD centralizada en los secrets
+    c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', ?)", (ADMIN_PASSWORD,))
     conn.commit()
     conn.close()
 
@@ -65,14 +79,11 @@ def generar_token(dias):
     return token
 
 def obtener_password_admin():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT value FROM admin_config WHERE key = 'password'")
-    res = c.fetchone()
-    conn.close()
-    return res[0] if res else "admin123"
+    # Retornamos el valor de los secrets en lugar de consultar la DB
+    return ADMIN_PASSWORD
 
 def actualizar_password_admin(nueva_pass):
+    # Nota: Si cambias el password, también deberías actualizar el Secret en Streamlit
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("UPDATE admin_config SET value = ? WHERE key = 'password'", (nueva_pass,))
