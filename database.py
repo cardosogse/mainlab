@@ -36,14 +36,7 @@ def validar_token(token):
     if not res:
         conn.close()
         return False, "Token no registrado."
-    if res[0] == 1:
-        conn.close()
-        return False, "Token ya en uso."
-    elif res[0] == 2:
-        conn.close()
-        return False, "Este token ha sido revocado."
     
-    # Actualizar local y nube
     c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
     conn.commit()
     conn.close()
@@ -52,15 +45,7 @@ def validar_token(token):
     except: pass
     return True, "Token Válido"
 
-def obtener_datos_usuario(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT score_puntos, vidas, modulo_actual FROM tokens_acceso WHERE token = ?", (token,))
-    res = c.fetchone()
-    conn.close()
-    return res if res else (0, 3, 0)
-
-# # --- ADMINISTRACIÓN DE LICENCIAS Y SEGURIDAD ---
+# # --- ADMINISTRACIÓN DE LICENCIAS ---
 def generar_token(dias):
     timestamp = datetime.datetime.now().strftime("%H%M%S")
     token = f"MAIN-{datetime.date.today().strftime('%y%m%d')}-{timestamp}"
@@ -80,6 +65,14 @@ def generar_token(dias):
     except: pass
     return token
 
+def listar_todos_los_tokens():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual FROM tokens_acceso")
+    filas = c.fetchall()
+    conn.close()
+    return filas
+
 def revocar_eliminar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -90,38 +83,15 @@ def revocar_eliminar_token(token):
         supabase.table("tokens_acceso").update({"en_uso": 2}).eq("token", token).execute()
     except: pass
 
-def liberar_token(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET en_uso = 0 WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
-    try:
-        supabase.table("tokens_acceso").update({"en_uso": 0}).eq("token", token).execute()
-    except: pass
-
 # # --- SINCRONIZACIÓN DE PROGRESO ---
 def sincronizar_progreso_db(token, nuevos_puntos, modulo_destino):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (nuevos_puntos, modulo_destino, token))
+    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (nuevos_puntos, str(modulo_destino), token))
     conn.commit()
     conn.close()
     try:
         supabase.table("tokens_acceso").update({"score_puntos": nuevos_puntos, "modulo_actual": str(modulo_destino)}).eq("token", token).execute()
-    except: pass
-
-def descontar_vida_db(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET vidas = max(0, vidas - 1) WHERE token = ?", (token,))
-    # Obtener valor nuevo para sync
-    c.execute("SELECT vidas FROM tokens_acceso WHERE token = ?", (token,))
-    nuevas_vidas = c.fetchone()[0]
-    conn.commit()
-    conn.close()
-    try:
-        supabase.table("tokens_acceso").update({"vidas": nuevas_vidas}).eq("token", token).execute()
     except: pass
 
 def otorgar_tiempo_extra_db(token, dias_adicionales=7):
