@@ -67,11 +67,13 @@ if modo_acceso == "Consola del Administrador":
                         forzar_liberacion_sesion(token_seleccionado)
                         st.rerun()
                # Dentro de tab_control en app.py:
-with col2:
-    if st.button("🗑️ Eliminar Token", key="btn_eliminar"):
-        eliminar_token(token_seleccionado) # Nueva función de borrado físico
-        st.success(f"Token {token_seleccionado} eliminado del sistema.")
-        st.rerun()
+# ... (arriba de esto está tu bloque de botones)
+                with col2:
+                    if st.button("🗑️ Eliminar Token", key="btn_eliminar"):
+                        eliminar_token(token_seleccionado)
+                        st.success(f"Token {token_seleccionado} eliminado del sistema.")
+                        st.rerun()
+            # Este 'else' debe estar alineado con 'if datos_raw:'
             else:
                 st.info("Base de datos sin tokens registrados.")
         
