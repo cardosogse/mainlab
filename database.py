@@ -5,10 +5,11 @@ import streamlit as st
 from supabase import create_client
 
 # --- CONFIGURACIÓN ---
-DB_NAME = "licencias.db"  # Asegúrate de que este sea el nombre de tu archivo DB
+DB_NAME = "licencias.db"
+# Asegúrate de que tus secretos en Streamlit tengan estos nombres exactos
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
-# --- FUNCIONES DE SUPABASE (Almacén en la Nube) ---
+# --- FUNCIONES DE SUPABASE (Nube) ---
 def guardar_progreso(username, datos):
     try:
         supabase.table("usuarios").insert({
@@ -17,7 +18,6 @@ def guardar_progreso(username, datos):
         }).execute()
         return True
     except Exception as e:
-        st.error(f"Error al sincronizar con la nube: {e}")
         return False
 
 def obtener_progreso(username):
@@ -30,11 +30,9 @@ def obtener_progreso(username):
         return None
 
 # --- FUNCIONES DE LICENCIAS (SQLite Local) ---
-# ... (Aquí va todo tu código de licencias original que me pasaste) ...
 def inicializar_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    # Asegúrate de que esta línea cree tu tabla de licencias original
     c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso 
                  (token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
                   score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT)''')
