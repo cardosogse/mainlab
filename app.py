@@ -66,12 +66,12 @@ if modo_acceso == "Consola del Administrador":
                     if st.button("🔓 Forzar Cierre"):
                         forzar_liberacion_sesion(token_seleccionado)
                         st.rerun()
-                with col2:
-                    # Mejora implementada: Botón con acción forzada y recarga
-                    if st.button("🚨 Revocar Licencia", key="btn_revocar"):
-                        revocar_eliminar_token(token_seleccionado)
-                        st.warning(f"Token {token_seleccionado} revocado correctamente.")
-                        st.rerun()
+               # Dentro de tab_control en app.py:
+with col2:
+    if st.button("🗑️ Eliminar Token", key="btn_eliminar"):
+        eliminar_token(token_seleccionado) # Nueva función de borrado físico
+        st.success(f"Token {token_seleccionado} eliminado del sistema.")
+        st.rerun()
             else:
                 st.info("Base de datos sin tokens registrados.")
         
