@@ -8,7 +8,7 @@ from supabase import create_client
 DB_NAME = "licencias.db"
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
-# --- FUNCIONES DE SUPABASE (Nube) ---
+# --- FUNCIONES DE SUPABASE ---
 def guardar_progreso(username, datos):
     try:
         supabase.table("usuarios").insert({"username": username, "progreso": str(datos)}).execute()
@@ -21,17 +21,14 @@ def obtener_progreso(username):
         return response.data[0]["progreso"] if response.data else None
     except Exception: return None
 
-# --- FUNCIONES DE LICENCIAS (SQLITE - LO QUE TU APP NECESITA) ---
+# --- FUNCIONES DE LICENCIAS (SQLITE) ---
 def inicializar_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    # Tabla de licencias
     c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso 
                  (token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
                   score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT)''')
-    # Tabla para contraseñas de admin (que tu app pide)
     c.execute('''CREATE TABLE IF NOT EXISTS admin_config (key TEXT PRIMARY KEY, value TEXT)''')
-    # Valor inicial si no existe
     c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', 'admin123')")
     conn.commit()
     conn.close()
@@ -82,7 +79,6 @@ def actualizar_password_admin(nueva_pass):
     conn.commit()
     conn.close()
 
-# --- FUNCIONES DE MANTENIMIENTO ---
 def liberar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -107,3 +103,28 @@ def listar_todos_los_tokens():
     filas = c.fetchall()
     conn.close()
     return filas
+
+def sincronizar_progreso_db(token, nuevos_puntos, modulo_destino):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (nuevos_puntos, modulo_destino, token))
+    conn.commit()
+    conn.close()
+
+def descontar_vida_db(token):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("UPDATE tokens_acceso SET vidas = max(0, vidas - 1) WHERE token = ?", (token,))
+    conn.commit()
+    conn.close()
+
+def otorgar_tiempo_extra_db(token, dias_adicionales=7):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
+    res = c.fetchone()
+    if res:
+        nueva_fecha = datetime.datetime.strptime(res[0], "%Y-%m-%d").date() + timedelta(days=dias_adicionales)
+        c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (nueva_fecha.strftime("%Y-%m-%d"), token))
+        conn.commit()
+    conn.close()
