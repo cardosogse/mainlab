@@ -42,7 +42,6 @@ def inicializar_db():
                   (token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
                    score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS admin_config (key TEXT PRIMARY KEY, value TEXT)''')
-    # Nota: Aquí usamos nuestra nueva ADMIN_PASSWORD centralizada en los secrets
     c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', ?)", (ADMIN_PASSWORD,))
     conn.commit()
     conn.close()
@@ -91,26 +90,19 @@ def generar_token(dias):
     return token
 
 def obtener_password_admin():
-    # Retornamos el valor de los secrets en lugar de consultar la DB
     return ADMIN_PASSWORD
 
 def actualizar_password_admin(nueva_pass):
-    # Nota: Si cambias el password, también deberías actualizar el Secret en Streamlit
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("UPDATE admin_config SET value = ? WHERE key = 'password'", (nueva_pass,))
     conn.commit()
     conn.close()
 
-def revocar_token_logico(token):
-    """
-    Marca un token como revocado (estado 2) en lugar de eliminarlo.
-    Esto preserva el historial para auditorías.
-    """
+def liberar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    # Cambiamos a '2' para indicar que fue revocado manualmente
-    c.execute("UPDATE tokens_acceso SET en_uso = 2 WHERE token = ?", (token,))
+    c.execute("UPDATE tokens_acceso SET en_uso = 0 WHERE token = ?", (token,))
     conn.commit()
     conn.close()
 
@@ -118,9 +110,10 @@ def forzar_liberacion_sesion(token):
     liberar_token(token)
 
 def revocar_eliminar_token(token):
+    # Ahora hace borrado lógico (marca como 2) en lugar de borrar físicamente
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("DELETE FROM tokens_acceso WHERE token = ?", (token,))
+    c.execute("UPDATE tokens_acceso SET en_uso = 2 WHERE token = ?", (token,))
     conn.commit()
     conn.close()
 
