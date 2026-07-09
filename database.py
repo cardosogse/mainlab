@@ -42,9 +42,14 @@ def validar_token(token):
     elif res[0] == 2:
         conn.close()
         return False, "Este token ha sido revocado."
+    
+    # Actualizar local y nube
     c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
     conn.commit()
     conn.close()
+    try:
+        supabase.table("tokens_acceso").update({"en_uso": 1}).eq("token", token).execute()
+    except: pass
     return True, "Token Válido"
 
 def obtener_datos_usuario(token):
@@ -57,36 +62,23 @@ def obtener_datos_usuario(token):
 
 # # --- ADMINISTRACIÓN DE LICENCIAS Y SEGURIDAD ---
 def generar_token(dias):
-    # Genera token único usando timestamp para evitar IntegrityError
     timestamp = datetime.datetime.now().strftime("%H%M%S")
     token = f"MAIN-{datetime.date.today().strftime('%y%m%d')}-{timestamp}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
+    
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("INSERT INTO tokens_acceso VALUES (?, 0, ?, 0, 3, '1')", (token, fecha_exp))
     conn.commit()
     conn.close()
+    
+    try:
+        supabase.table("tokens_acceso").insert({
+            "token": token, "en_uso": 0, "fecha_expiracion": fecha_exp, 
+            "score_puntos": 0, "vidas": 3, "modulo_actual": '1'
+        }).execute()
+    except: pass
     return token
-
-def obtener_password_admin():
-    return ADMIN_PASSWORD
-
-def actualizar_password_admin(nueva_pass):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE admin_config SET value = ? WHERE key = 'password'", (nueva_pass,))
-    conn.commit()
-    conn.close()
-
-def liberar_token(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET en_uso = 0 WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
-
-def forzar_liberacion_sesion(token):
-    liberar_token(token)
 
 def revocar_eliminar_token(token):
     conn = sqlite3.connect(DB_NAME)
@@ -94,29 +86,43 @@ def revocar_eliminar_token(token):
     c.execute("UPDATE tokens_acceso SET en_uso = 2 WHERE token = ?", (token,))
     conn.commit()
     conn.close()
+    try:
+        supabase.table("tokens_acceso").update({"en_uso": 2}).eq("token", token).execute()
+    except: pass
 
-def listar_todos_los_tokens():
+def liberar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual FROM tokens_acceso")
-    filas = c.fetchall()
+    c.execute("UPDATE tokens_acceso SET en_uso = 0 WHERE token = ?", (token,))
+    conn.commit()
     conn.close()
-    return filas
+    try:
+        supabase.table("tokens_acceso").update({"en_uso": 0}).eq("token", token).execute()
+    except: pass
 
-# # --- SINCRONIZACIÓN DE PROGRESO Y REGLAS DE JUEGO ---
+# # --- SINCRONIZACIÓN DE PROGRESO ---
 def sincronizar_progreso_db(token, nuevos_puntos, modulo_destino):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (nuevos_puntos, modulo_destino, token))
     conn.commit()
     conn.close()
+    try:
+        supabase.table("tokens_acceso").update({"score_puntos": nuevos_puntos, "modulo_actual": str(modulo_destino)}).eq("token", token).execute()
+    except: pass
 
 def descontar_vida_db(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("UPDATE tokens_acceso SET vidas = max(0, vidas - 1) WHERE token = ?", (token,))
+    # Obtener valor nuevo para sync
+    c.execute("SELECT vidas FROM tokens_acceso WHERE token = ?", (token,))
+    nuevas_vidas = c.fetchone()[0]
     conn.commit()
     conn.close()
+    try:
+        supabase.table("tokens_acceso").update({"vidas": nuevas_vidas}).eq("token", token).execute()
+    except: pass
 
 def otorgar_tiempo_extra_db(token, dias_adicionales=7):
     conn = sqlite3.connect(DB_NAME)
@@ -125,6 +131,10 @@ def otorgar_tiempo_extra_db(token, dias_adicionales=7):
     res = c.fetchone()
     if res:
         nueva_fecha = datetime.datetime.strptime(res[0], "%Y-%m-%d").date() + timedelta(days=dias_adicionales)
-        c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (nueva_fecha.strftime("%Y-%m-%d"), token))
+        fecha_str = nueva_fecha.strftime("%Y-%m-%d")
+        c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (fecha_str, token))
         conn.commit()
+        try:
+            supabase.table("tokens_acceso").update({"fecha_expiracion": fecha_str}).eq("token", token).execute()
+        except: pass
     conn.close()
