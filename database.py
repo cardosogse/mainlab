@@ -36,12 +36,7 @@ def validar_token(token):
     if not res:
         conn.close()
         return False, "Token no registrado."
-    if res[0] == 1:
-        conn.close()
-        return False, "Token ya en uso."
-    elif res[0] == 2:
-        conn.close()
-        return False, "Este token ha sido revocado."
+    
     c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
     conn.commit()
     conn.close()
@@ -73,6 +68,16 @@ def generar_token(dias):
     except: pass
     return token
 
+def eliminar_token(token):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM tokens_acceso WHERE token = ?", (token,))
+    conn.commit()
+    conn.close()
+    try:
+        supabase.table("tokens_acceso").delete().eq("token", token).execute()
+    except: pass
+
 def liberar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -83,16 +88,6 @@ def liberar_token(token):
         supabase.table("tokens_acceso").update({"en_uso": 0}).eq("token", token).execute()
     except: pass
 
-def revocar_eliminar_token(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET en_uso = 2 WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
-    try:
-        supabase.table("tokens_acceso").update({"en_uso": 2}).eq("token", token).execute()
-    except: pass
-
 def listar_todos_los_tokens():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -100,9 +95,6 @@ def listar_todos_los_tokens():
     filas = c.fetchall()
     conn.close()
     return filas
-
-def forzar_liberacion_sesion(token):
-    liberar_token(token)
 
 def obtener_password_admin():
     return ADMIN_PASSWORD
@@ -123,18 +115,6 @@ def sincronizar_progreso_db(token, nuevos_puntos, modulo_destino):
     conn.close()
     try:
         supabase.table("tokens_acceso").update({"score_puntos": nuevos_puntos, "modulo_actual": str(modulo_destino)}).eq("token", token).execute()
-    except: pass
-
-def descontar_vida_db(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET vidas = max(0, vidas - 1) WHERE token = ?", (token,))
-    c.execute("SELECT vidas FROM tokens_acceso WHERE token = ?", (token,))
-    vidas = c.fetchone()[0]
-    conn.commit()
-    conn.close()
-    try:
-        supabase.table("tokens_acceso").update({"vidas": vidas}).eq("token", token).execute()
     except: pass
 
 def otorgar_tiempo_extra_db(token, dias_adicionales=7):
