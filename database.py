@@ -4,7 +4,7 @@ from datetime import timedelta
 import streamlit as st
 from supabase import create_client
 
-# Configuración y conexión
+# # --- CONFIGURACIÓN E INICIALIZACIÓN ---
 try:
     SUPABASE_URL = st.secrets["supabase"]["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["supabase"]["SUPABASE_KEY"]
@@ -15,7 +15,7 @@ except Exception as e:
     st.error(f"Error de configuración: {e}")
     st.stop()
 
-# --- FUNCIONES DE BASE DE DATOS ---
+# # --- GESTIÓN DE ESTRUCTURA DE DATOS ---
 def inicializar_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -27,6 +27,7 @@ def inicializar_db():
     conn.commit()
     conn.close()
 
+# # --- VALIDACIÓN Y SESIÓN ---
 def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -54,8 +55,11 @@ def obtener_datos_usuario(token):
     conn.close()
     return res if res else (0, 3, 0)
 
+# # --- ADMINISTRACIÓN DE LICENCIAS Y SEGURIDAD ---
 def generar_token(dias):
-    token = f"MAIN-{datetime.date.today().strftime('%y%m%d')}"
+    # Genera token único usando timestamp para evitar IntegrityError
+    timestamp = datetime.datetime.now().strftime("%H%M%S")
+    token = f"MAIN-{datetime.date.today().strftime('%y%m%d')}-{timestamp}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -99,6 +103,7 @@ def listar_todos_los_tokens():
     conn.close()
     return filas
 
+# # --- SINCRONIZACIÓN DE PROGRESO Y REGLAS DE JUEGO ---
 def sincronizar_progreso_db(token, nuevos_puntos, modulo_destino):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
