@@ -65,7 +65,6 @@ def validar_token(token):
         conn.close()
         return False, "Este token ha sido revocado."
     
-    # Si estado es 0 (disponible), lo activamos
     c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
     conn.commit()
     conn.close()
@@ -109,10 +108,11 @@ def liberar_token(token):
 def forzar_liberacion_sesion(token):
     liberar_token(token)
 
-def revocar_eliminar_token(token):
-    # Ahora hace borrado lógico (marca como 2) en lugar de borrar físicamente
+# --- NUEVA FUNCIÓN DE BORRADO LÓGICO ---
+def revocar_token_logico(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+    # Cambiamos a '2' (revocado) para que el token no desaparezca
     c.execute("UPDATE tokens_acceso SET en_uso = 2 WHERE token = ?", (token,))
     conn.commit()
     conn.close()
