@@ -1,3 +1,4 @@
+# === ARCHIVO COMPLETO: database.py ===
 import sqlite3
 import datetime
 from datetime import timedelta
@@ -12,18 +13,16 @@ def inicializar_db():
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso
                  (token TEXT PRIMARY KEY, 
-                  fecha_expiracion DATE, 
-                  en_uso BOOLEAN, 
-                  identificador_usuario TEXT,
-                  modulo_actual INTEGER DEFAULT 1,
-                  score_puntos INTEGER DEFAULT 0,
+                  fecha_expiracion DATE, \
+                  en_uso BOOLEAN, \
+                  identificador_usuario TEXT, \
+                  modulo_actual INTEGER DEFAULT 1, \
+                  score_puntos INTEGER DEFAULT 0, \
                   vidas INTEGER DEFAULT 3)''')
     
-    # Tabla persistente para configuraciones avanzadas del sistema
     c.execute('''CREATE TABLE IF NOT EXISTS config_sistema
                  (clave TEXT PRIMARY KEY, valor TEXT)''')
     
-    # Contraseña por defecto si la tabla está vacía
     c.execute("INSERT OR IGNORE INTO config_sistema (clave, valor) VALUES ('admin_password', 'UNAM2026')")
     
     token_prueba = "SYNAPSIS-PRO-2026"
@@ -33,7 +32,6 @@ def inicializar_db():
     conn.commit()
     conn.close()
 
-# --- FUNCIONES DE GESTIÓN DE CONTRASEÑA ---
 def obtener_password_admin():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -45,59 +43,42 @@ def obtener_password_admin():
 def actualizar_password_admin(nueva_pass):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("UPDATE config_sistema SET valor = ? WHERE clave = 'admin_password'", (nueva_pass.strip(),))
+    c.execute("UPDATE config_sistema SET valor = ? WHERE clave = 'admin_password'", (nueva_pass,))
     conn.commit()
     conn.close()
 
-# --- REINGENIERÍA DE LICENCIAS DINÁMICAS (CORTAS) ---
-def generar_token(vigencia_dias):
+def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    caracteres = string.ascii_uppercase + string.digits
+    # Blindaje contra SQLi usando parámetros puros (?)
+    c.execute("SELECT en_uso, fecha_expiracion, identificador_usuario, modulo_actual, score_puntos, vidas FROM tokens_acceso WHERE token = ?", (token,))
+    res = c.fetchone()
     
-    # Condicional de segmentación de cupones cortos aprobado
-    if vigencia_dias >= 90:
-        prefix = "MLP-"
-    else:
-        prefix = "ML-"
-        
-    nuevo_tok = prefix + "".join(random.choice(caracteres) for _ in range(6))
-    exp = datetime.date.today() + timedelta(days=vigencia_dias)
-    c.execute("INSERT INTO tokens_acceso (token, fecha_expiracion, en_uso, identificador_usuario, modulo_actual, score_puntos, vidas) VALUES (?, ?, 0, 'Estudiante Autónomo', 1, 0, 3)", 
-              (nuevo_tok, exp))
-    conn.commit()
-    conn.close()
-    return nuevo_tok
-
-def obtener_datos_usuario(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT score_puntos, vidas, modulo_actual FROM tokens_acceso WHERE token = ?", (token,))
-    res = f = c.fetchone()
-    conn.close()
-    return res if res else (0, 3, 1)
-
-def validar_token(token_ingresado):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT fecha_expiracion, en_uso FROM tokens_acceso WHERE token = ?", (token_ingresado.strip().upper(),))
-    resultado = c.fetchone()
-    
-    if resultado:
-        fecha_exp = datetime.datetime.strptime(resultado[0], "%Y-%m-%d").date()
-        en_uso = resultado[1]
-        if datetime.date.today() > fecha_exp:
-            conn.close()
-            return False, "El token ha expirado o fue cancelado por el administrador."
-        if en_uso:
-            conn.close()
-            return False, "Acceso denegado: Token activo en otro dispositivo."
+    if not res:
         conn.close()
-        return True, "Token Válido"
+        return False, "", 1, 0, 3
+        
+    en_uso, f_exp, usuario, modulo, pts, vds = res
+    
+    try:
+        date_obj = datetime.datetime.strptime(f_exp, "%Y-%m-%d").date()
+        if date_obj < datetime.date.today():
+            conn.close()
+            return False, "", 1, 0, 3
+    except:
+        pass
+
+    if en_uso:
+        conn.close()
+        return False, "", 1, 0, 3
+        
+    c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
+    conn.commit()
     conn.close()
-    return False, "Token no registrado en el servidor central de licencias."
+    return True, usuario, modulo, pts, vds
 
 def liberar_token(token):
+    if not token: return
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("UPDATE tokens_acceso SET en_uso = 0 WHERE token = ?", (token,))
@@ -105,7 +86,11 @@ def liberar_token(token):
     conn.close()
 
 def forzar_liberacion_sesion(token):
-    liberar_token(token)
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("UPDATE tokens_acceso SET en_uso = 0 WHERE token = ?", (token,))
+    conn.commit()
+    conn.close()
 
 def revocar_eliminar_token(token):
     conn = sqlite3.connect(DB_NAME)
@@ -113,6 +98,20 @@ def revocar_eliminar_token(token):
     c.execute("DELETE FROM tokens_acceso WHERE token = ?", (token,))
     conn.commit()
     conn.close()
+
+def generar_token(dias_vigencia, usuario_id):
+    caracteres = string.ascii_uppercase + string.digits
+    sufijo = ''.join(random.choices(caracteres, k=4))
+    nuevo_token = f"SYNAPSIS-PRO-{sufijo}"
+    fecha_exp = datetime.date.today() + timedelta(days=dias_vigencia)
+    
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("INSERT INTO tokens_acceso (token, fecha_expiracion, en_uso, identificador_usuario, modulo_actual, score_puntos, vidas) VALUES (?, ?, 0, ?, 1, 0, 3)", 
+              (nuevo_token, str(fecha_exp), usuario_id))
+    conn.commit()
+    conn.close()
+    return nuevo_token
 
 def listar_todos_los_tokens():
     conn = sqlite3.connect(DB_NAME)
@@ -155,7 +154,19 @@ def otorgar_tiempo_extra_db(token, dias_adicionales=7):
     c.execute("SELECT fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
     res = c.fetchone()
     if res:
-        nueva_fecha = datetime.datetime.strptime(res[0], "%Y-%m-%d").date() + timedelta(days=dias_adicionales)
-        c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (nueva_fecha.strftime("%Y-%m-%d"), token))
-    conn.commit()
+        try:
+            curr_date = datetime.datetime.strptime(res[0], "%Y-%m-%d").date()
+            nueva_fecha = curr_date + timedelta(days=dias_adicionales)
+            c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (str(nueva_fecha), token))
+            conn.commit()
+        except:
+            pass
     conn.close()
+
+def obtener_datos_usuario(token):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT identificador_usuario, modulo_actual, score_puntos, vidas FROM tokens_acceso WHERE token = ?", (token,))
+    res = c.fetchone()
+    conn.close()
+    return res if res else (None, 1, 0, 3)
