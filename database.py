@@ -50,15 +50,27 @@ def inicializar_db():
 def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT * FROM tokens_acceso WHERE token = ? AND en_uso = 0", (token,))
+    c.execute("SELECT en_uso FROM tokens_acceso WHERE token = ?", (token,))
     res = c.fetchone()
-    if res:
-        c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
-        conn.commit()
+    
+    if not res:
         conn.close()
-        return True, "Token Válido"
+        return False, "Token no registrado."
+    
+    estado = res[0]
+    
+    if estado == 1:
+        conn.close()
+        return False, "Token ya en uso."
+    elif estado == 2:
+        conn.close()
+        return False, "Este token ha sido revocado."
+    
+    # Si estado es 0 (disponible), lo activamos
+    c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
+    conn.commit()
     conn.close()
-    return False, "Token no registrado o en uso."
+    return True, "Token Válido"
 
 def obtener_datos_usuario(token):
     conn = sqlite3.connect(DB_NAME)
@@ -90,10 +102,15 @@ def actualizar_password_admin(nueva_pass):
     conn.commit()
     conn.close()
 
-def liberar_token(token):
+def revocar_token_logico(token):
+    """
+    Marca un token como revocado (estado 2) en lugar de eliminarlo.
+    Esto preserva el historial para auditorías.
+    """
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET en_uso = 0 WHERE token = ?", (token,))
+    # Cambiamos a '2' para indicar que fue revocado manualmente
+    c.execute("UPDATE tokens_acceso SET en_uso = 2 WHERE token = ?", (token,))
     conn.commit()
     conn.close()
 
