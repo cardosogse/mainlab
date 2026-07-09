@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
+
+# --- IMPORTACIÓN ROBUSTA ---
 try:
     from database import (
         inicializar_db, validar_token, liberar_token, obtener_datos_usuario,
-        generar_token, listar_todos_los_tokens, revocar_eliminar_token, forzar_liberacion_sesion,
-        obtener_password_admin, actualizar_password_admin
+        generar_token, listar_todos_los_tokens, revocar_eliminar_token, 
+        forzar_liberacion_sesion, obtener_password_admin, actualizar_password_admin
     )
     from assets import cargar_estilos, mezclar_memorama
     from modulos.m1_dia1 import mostrar_dia1
@@ -12,11 +14,11 @@ try:
     from modulos.m1_dia3 import mostrar_dia3
     from modulos.m1_dia4 import mostrar_dia4
     from modulos.modulo2 import mostrar_modulo2
-except Exception as e:
-    st.set_page_config(page_title="MainLab - Diagnóstico", layout="wide", page_icon="🚨")
-    st.error("🚨 MONITOR DE CONTROL: ERROR DE COMPILACIÓN DETECTADO")
-    st.exception(e)
+except ImportError as e:
+    st.error(f"Error de conexión con base de datos: {e}")
     st.stop()
+
+# --- CONFIGURACIÓN ---
 st.set_page_config(page_title="MainLab", layout="wide", page_icon="🧬")
 cargar_estilos()
 inicializar_db()
@@ -55,10 +57,12 @@ if modo_acceso == "Consola del Administrador":
                         forzar_liberacion_sesion(token_seleccionado)
                         st.rerun()
                 with col2:
-                    if st.button("🚨 Revocar Licencia"):
-                        revocar_eliminar_token(token_seleccionado)
-                        st.warning("Token destruido.")
-                        st.rerun()
+    if st.button("🚨 Revocar Licencia", key="btn_revocar"):
+        # Llamada directa y verificada
+        revocar_eliminar_token(token_seleccionado)
+        st.warning(f"Token {token_seleccionado} revocado.")
+        # Forzar recarga inmediata de los datos
+        st.rerun()
         with tab_seguridad:
             nueva_pass = st.text_input("Nueva Contraseña:", type="password")
             if st.button("Guardar Cambios"):
