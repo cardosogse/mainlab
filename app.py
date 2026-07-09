@@ -1,145 +1,99 @@
-import sqlite3
-import datetime
-from datetime import timedelta
 import streamlit as st
-from supabase import create_client
+import pandas as pd
+from database import (
+    inicializar_db, validar_token, liberar_token, obtener_datos_usuario,
+    generar_token, listar_todos_los_tokens, revocar_token_logico, forzar_liberacion_sesion,
+    obtener_password_admin, actualizar_password_admin
+)
+from assets import cargar_estilos, mezclar_memorama
+from modulos.m1_dia1 import mostrar_dia1
+from modulos.m1_dia2 import mostrar_dia2
+from modulos.m1_dia3 import mostrar_dia3
+from modulos.m1_dia4 import mostrar_dia4
+from modulos.modulo2 import mostrar_modulo2
 
-# --- 1. CARGA SEGURA DE CONFIGURACIONES ---
-try:
-    SUPABASE_URL = st.secrets["supabase"]["SUPABASE_URL"]
-    SUPABASE_KEY = st.secrets["supabase"]["SUPABASE_KEY"]
-    DB_NAME = st.secrets["config"]["DB_NAME"]
-    ADMIN_PASSWORD = st.secrets["config"]["ADMIN_PASSWORD"]
-except KeyError as e:
-    st.error(f"Error crítico: Falta la configuración {e} en los Secrets.")
-    st.stop()
+st.set_page_config(page_title="MainLab", layout="wide", page_icon="🧬")
+cargar_estilos()
+inicializar_db()
 
-# --- 2. INICIALIZACIÓN DE SUPABASE ---
-try:
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-except Exception as e:
-    st.error(f"Error conectando a Supabase: {e}")
-    st.stop()
+# Recuperar dinámicamente la contraseña maestra actual desde SQLite
+pass_maestra_actual = obtener_password_admin()
 
-# --- FUNCIONES DE SUPABASE ---
-def guardar_progreso(username, datos):
-    try:
-        supabase.table("usuarios").insert({"username": username, "progreso": str(datos)}).execute()
-        return True
-    except Exception: return False
+st.markdown("<h1 class='main-title'>Main<span class='main-title-suffix'>Lab</span></h1>", unsafe_allow_html=True)
+st.markdown("<p class='sub-title'>Bioquímica aplicada. Ciencia interactiva. Sin límites.</p>", unsafe_allow_html=True)
 
-def obtener_progreso(username):
-    try:
-        response = supabase.table("usuarios").select("progreso").eq("username", username).execute()
-        return response.data[0]["progreso"] if response.data else None
-    except Exception: return None
+st.sidebar.title("🛠️ Consola del Sistema")
+modo_acceso = st.sidebar.radio("Selecciona tu Terminal:", ["Portal del Estudiante", "Consola del Administrador"])
 
-# --- FUNCIONES DE LICENCIAS (SQLITE) ---
-def inicializar_db():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso 
-                  (token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
-                   score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS admin_config (key TEXT PRIMARY KEY, value TEXT)''')
-    c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', ?)", (ADMIN_PASSWORD,))
-    conn.commit()
-    conn.close()
+if "auth" not in st.session_state: st.session_state["auth"] = False
+if "token_actual" not in st.session_state: st.session_state["token_actual"] = ""
+if "vidas" not in st.session_state: st.session_state["vidas"] = 3
+if "puntos_acumulados" not in st.session_state: st.session_state["puntos_acumulados"] = 0
+if "memo_completado" not in st.session_state: st.session_state["memo_completado"] = False
+if "memo_tablero" not in st.session_state: st.session_state["memo_tablero"] = mezclar_memorama()
 
-def validar_token(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT en_uso FROM tokens_acceso WHERE token = ?", (token,))
-    res = c.fetchone()
-    if not res:
-        conn.close()
-        return False, "Token no registrado."
-    estado = res[0]
-    if estado == 1:
-        conn.close()
-        return False, "Token ya en uso."
-    elif estado == 2:
-        conn.close()
-        return False, "Este token ha sido revocado."
-    c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
-    return True, "Token Válido"
+if modo_acceso == "Consola del Administrador":
+    st.markdown("<div class='lab-panel'>", unsafe_allow_html=True)
+    st.subheader("🔑 Autenticación de Seguridad del Administrador")
+    clave_admin = st.text_input("Introduce la Clave Maestra:", type="password")
+    
+    if clave_admin == pass_maestra_actual:
+        st.success("Acceso verificado.")
+        tab_generar, tab_control, tab_seguridad = st.tabs(["🆕 Generar", "📊 Monitor", "⚙️ Seguridad"])
+        
+        with tab_generar:
+            vigencia = st.number_input("Días de vigencia:", min_value=1, max_value=365, value=30)
+            if st.button("Emitir Cupón"):
+                nuevo_tok = generar_token(vigencia)
+                st.code(f"TOKEN: {nuevo_tok}", language="text")
+                
+        with tab_control:
+            datos_raw = listar_todos_los_tokens()
+            if datos_raw:
+                df = pd.DataFrame(datos_raw, columns=["Token", "Activo", "Expira", "Puntos", "Vidas", "Modulo"])
+                st.dataframe(df, use_container_width=True)
+                token_seleccionado = st.selectbox("Selecciona Token:", df["Token"].tolist())
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("🔓 Forzar Cierre"):
+                        forzar_liberacion_sesion(token_seleccionado)
+                        st.rerun()
+                with col2:
+                    if st.button("🚨 Revocar Licencia"):
+                        revocar_token_logico(token_seleccionado)
+                        st.warning("Token revocado.")
+                        st.rerun()
+            
+        with tab_seguridad:
+            nueva_pass = st.text_input("Nueva Clave Admin:", type="password")
+            if st.button("Guardar Cambios"):
+                actualizar_password_admin(nueva_pass)
+                st.success("Clave actualizada. Recarga la app.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-def obtener_datos_usuario(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT score_puntos, vidas, modulo_actual FROM tokens_acceso WHERE token = ?", (token,))
-    res = c.fetchone()
-    conn.close()
-    return res if res else (0, 3, 0)
-
-def generar_token(dias):
-    token = f"MAIN-{datetime.date.today().strftime('%y%m%d')}"
-    fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("INSERT INTO tokens_acceso VALUES (?, 0, ?, 0, 3, '1')", (token, fecha_exp))
-    conn.commit()
-    conn.close()
-    return token
-
-def obtener_password_admin():
-    return ADMIN_PASSWORD
-
-def actualizar_password_admin(nueva_pass):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE admin_config SET value = ? WHERE key = 'password'", (nueva_pass,))
-    conn.commit()
-    conn.close()
-
-def liberar_token(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET en_uso = 0 WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
-
-def forzar_liberacion_sesion(token):
-    liberar_token(token)
-
-def revocar_token_logico(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET en_uso = 2 WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
-
-def listar_todos_los_tokens():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual FROM tokens_acceso")
-    filas = c.fetchall()
-    conn.close()
-    return filas
-
-def sincronizar_progreso_db(token, nuevos_puntos, modulo_destino):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (nuevos_puntos, modulo_destino, token))
-    conn.commit()
-    conn.close()
-
-def descontar_vida_db(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET vidas = max(0, vidas - 1) WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
-
-def otorgar_tiempo_extra_db(token, dias_adicionales=7):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
-    res = c.fetchone()
-    if res:
-        nueva_fecha = datetime.datetime.strptime(res[0], "%Y-%m-%d").date() + timedelta(days=dias_adicionales)
-        c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (nueva_fecha.strftime("%Y-%m-%d"), token))
-        conn.commit()
-    conn.close()
+else:
+    if not st.session_state["auth"]:
+        st.markdown("<div class='lab-panel'>", unsafe_allow_html=True)
+        token_input = st.text_input("Token de Acceso:", type="password")
+        if st.button("Conectar"):
+            if token_input.strip() == pass_maestra_actual:
+                st.info("Redirige a Consola Administrador.")
+            else:
+                es_valido, mensaje = validar_token(token_input)
+                if es_valido:
+                    datos = obtener_datos_usuario(token_input.strip().upper())
+                    st.session_state["auth"] = True
+                    st.session_state['token_actual'] = token_input.strip().upper()
+                    st.session_state['puntos_acumulados'] = datos[0]
+                    st.session_state['vidas'] = datos[1]
+                    st.rerun()
+                else: st.error(mensaje)
+        st.markdown("</div>", unsafe_allow_html=True)
+    else:
+        with st.sidebar:
+            if st.button("🚪 Cerrar Sesión"):
+                liberar_token(st.session_state['token_actual'])
+                st.session_state.clear()
+                st.rerun()
+        # Aquí continúa tu lógica de módulos...
