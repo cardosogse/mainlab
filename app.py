@@ -57,12 +57,12 @@ if modo_acceso == "Consola del Administrador":
                         forzar_liberacion_sesion(token_seleccionado)
                         st.rerun()
                 with col2:
-    if st.button("🚨 Revocar Licencia", key="btn_revocar"):
-        # Llamada directa y verificada
-        revocar_eliminar_token(token_seleccionado)
-        st.warning(f"Token {token_seleccionado} revocado.")
-        # Forzar recarga inmediata de los datos
-        st.rerun()
+                    # El if debe estar debajo y a la derecha (4 espacios más) del 'with'
+                    if st.button("🚨 Revocar Licencia", key="btn_revocar"):
+                        # Esto es lo que se ejecuta al presionar el botón (sangría extra)
+                        revocar_eliminar_token(token_seleccionado)
+                        st.warning(f"Token {token_seleccionado} revocado correctamente.")
+                        st.rerun()    
         with tab_seguridad:
             nueva_pass = st.text_input("Nueva Contraseña:", type="password")
             if st.button("Guardar Cambios"):
