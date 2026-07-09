@@ -2,10 +2,9 @@ import streamlit as st
 import random
 
 def cargar_estilos():
-    # 1. Estilos base del sistema y estética de "Universo"
+    # Estilos base + ESCUDO DE PRIVACIDAD (Oculta menús, footer y herramientas de desarrollo)
     st.markdown("""
     <style>
-        /* Fondo Universo: Negro Absoluto + Nebulosas */
         .stApp {
             background-color: #000000 !important;
             background-image: 
@@ -28,12 +27,8 @@ def cargar_estilos():
             border: 1px solid #334155; margin-bottom: 15px;
         }
 
-        /* 2. ESCUDO DE PRIVACIDAD: Oculta menús, footer y herramientas de desarrollo */
-        #MainMenu, footer, header { 
-            visibility: hidden !important; 
-            display: none !important; 
-        }
-        
+        /* --- BLINDAJE DE PRIVACIDAD --- */
+        #MainMenu, footer, header { visibility: hidden !important; display: none !important; }
         [data-testid="stDecoration"], [data-testid="stToolbar"], [data-testid="stStatusWidget"] { 
             visibility: hidden !important; 
             display: none !important; 
@@ -41,22 +36,28 @@ def cargar_estilos():
     </style>
     """, unsafe_allow_html=True)
 
-# --- UTILIDADES ADICIONALES ---
+# --- FUNCIÓN NECESARIA PARA M1_DIA1 ---
+def obtener_svg_atomo(modelo_nombre):
+    if "Dalton" in modelo_nombre:
+        return "<svg viewBox='0 0 100 100' width='90' height='90'><circle cx='50' cy='50' r='34' fill='none' stroke='#90a4ae' stroke-width='2.5'/><circle cx='50' cy='50' r='31' fill='#90a4ae' opacity='0.15'/></svg>"
+    elif "Thomson" in modelo_nombre:
+        return "<svg viewBox='0 0 100 100' width='90' height='90'><circle cx='50' cy='50' r='34' fill='#9c27b0' opacity='0.15' stroke='#9c27b0' stroke-width='1.5'/><circle cx='34' cy='38' r='4' fill='#ffffff'/><text x='32' y='41' fill='black' font-size='9' font-weight='bold'>-</text><circle cx='66' cy='42' r='4' fill='#ffffff'/><text x='64' y='45' fill='black' font-size='9' font-weight='bold'>-</text><circle cx='48' cy='68' r='4' fill='#ffffff'/><text x='46' y='71' fill='black' font-size='9' font-weight='bold'>-</text><text x='45' y='54' fill='#9c27b0' font-size='14' font-weight='bold'>+</text></svg>"
+    elif "Rutherford" in modelo_nombre:
+        return "<svg viewBox='0 0 100 100' width='90' height='90'><circle cx='50' cy='50' r='6' fill='#2196f3'/><text x='47' y='54' fill='white' font-size='9' font-weight='bold'>+</text><ellipse cx='50' cy='50' rx='38' ry='10' fill='none' stroke='#2196f3' stroke-width='1' opacity='0.6' transform='rotate(30 50 50)'/><ellipse cx='50' cy='50' rx='38' ry='10' fill='none' stroke='#2196f3' stroke-width='1' opacity='0.6' transform='rotate(-30 50 50)'/><circle cx='22' cy='34' r='2.5' fill='#ffffff'/><circle cx='78' cy='66' r='2.5' fill='#ffffff'/></svg>"
+    elif "Bohr" in modelo_nombre:
+        return "<svg viewBox='0 0 100 100' width='90' height='90'><circle cx='50' cy='50' r='7' fill='#ffb142'/><circle cx='50' cy='50' r='20' fill='none' stroke='#ffb142' stroke-width='1' stroke-dasharray='2 2'/><circle cx='50' cy='50' r='36' fill='none' stroke='#ffb142' stroke-width='1'/><circle cx='50' cy='14' r='3' fill='#ffffff'/><circle cx='68' cy='38' r='3' fill='#ffffff'/></svg>"
+    else:
+        return "<svg viewBox='0 0 100 100' width='90' height='90'><defs><radialGradient id='cloud' cx='50%' cy='50%' r='50%'><stop offset='0%' stop-color='#00e5ff' stop-opacity='0.8'/><stop offset='50%' stop-color='#00e5ff' stop-opacity='0.25'/><stop offset='100%' stop-color='#00e5ff' stop-opacity='0'/></radialGradient></defs><circle cx='50' cy='50' r='38' fill='url(#cloud)'/><circle cx='50' cy='4' fill='#ffffff'/></svg>"
 
+# --- UTILIDADES ADICIONALES ---
 def mezclar_memorama():
-    # Genera los pares para el juego de memoria
     elementos = ["⚛️", "🧬", "🧪", "🔬", "🔋"] * 2
     random.shuffle(elementos)
-    # Crea una lista de tuplas (emoji, ID único)
     return [(elementos[i], i) for i in range(10)]
 
 def generar_svg_enlace(c1, sym1, c2, sym2, diff):
-    # Función para visualizar enlaces moleculares
-    # Nota: Mantenemos tu lógica de renderizado original
     cx_e1, cx_e2, ellipse_x, stroke_color, stroke_dash = 113, 127, 120, "#ffffff", "2 2"
-    
     if diff > 0.4:
-        # Lógica de enlace polar/iónico
         f1, f2 = 2.0, 2.0
         cx_e1, cx_e2, ellipse_x, stroke_color, stroke_dash = (85, 95, 100, c1, "4 2") if f1 > f2 else (145, 155, 140, c2, "4 2")
     elif diff == 0:
