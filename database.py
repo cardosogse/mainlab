@@ -31,6 +31,16 @@ def obtener_progreso(username):
 
 # --- FUNCIONES DE LICENCIAS (SQLite Local) ---
 # ... (Aquí va todo tu código de licencias original que me pasaste) ...
+def inicializar_db():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    # Asegúrate de que esta línea cree tu tabla de licencias original
+    c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso 
+                 (token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
+                  score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT)''')
+    conn.commit()
+    conn.close()
+
 def liberar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
