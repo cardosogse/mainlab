@@ -4,7 +4,7 @@ from datetime import timedelta
 import streamlit as st
 from supabase import create_client
 
-# Configuración (Asegúrate que esto coincida con tus secretos)
+# Configuración
 SUPABASE_URL = st.secrets["supabase"]["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["supabase"]["SUPABASE_KEY"]
 DB_NAME = st.secrets["config"]["DB_NAME"]
@@ -23,7 +23,8 @@ def inicializar_db():
     conn.commit()
     conn.close()
 
-# Funciones de lógica de negocio (No recortadas)
+# --- FUNCIONES DE LÓGICA DE NEGOCIO ---
+
 def registrar_intento_quiz(token, es_correcto):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -59,6 +60,19 @@ def descontar_vida_db(token):
     try:
         supabase.table("tokens_acceso").update({"vidas": "vidas - 1"}).eq("token", token).execute()
     except: pass
+
+def otorgar_tiempo_extra_db(token, dias_adicionales=7):
+    """Función esencial que faltaba para el Memorama"""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
+    res = c.fetchone()
+    if res:
+        fecha_actual = datetime.datetime.strptime(res[0], "%Y-%m-%d").date()
+        nueva_fecha = fecha_actual + timedelta(days=dias_adicionales)
+        c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (nueva_fecha.strftime("%Y-%m-%d"), token))
+        conn.commit()
+    conn.close()
 
 def obtener_password_admin():
     conn = sqlite3.connect(DB_NAME)
