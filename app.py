@@ -12,6 +12,7 @@ if 'auth' not in st.session_state: st.session_state['auth'] = None
 
 pass_maestra_actual = db.obtener_password_admin()
 
+# Cabecera Global con logotipo simétrico y centrado
 st.markdown("<h1 class='main-title'>Main<span class='main-title-suffix'>Lab</span></h1>", unsafe_allow_html=True)
 
 if st.session_state['auth'] is not None:
@@ -24,7 +25,7 @@ if st.session_state['auth'] is not None:
                     st.session_state['puntos_acumulados'], 
                     "1", 
                     st.session_state['vidas'], 
-                    st.session_state['tiempo_estudio_seg']
+                    st.session_state['tiempo_estudio_min']
                 )
             st.session_state['auth'] = None
             st.rerun()
@@ -34,8 +35,9 @@ def hidratar_sesion_alumno(token, datos_db):
     st.session_state['puntos_acumulados'] = datos_db["puntos"]
     st.session_state['vidas'] = datos_db["vidas"]
     st.session_state['errores_quiz'] = datos_db["errores"]
-    st.session_state['tiempo_historico_seg'] = datos_db["tiempo"]
-    st.session_state['tiempo_estudio_seg'] = datos_db["tiempo"]
+    # MODIFICADO: Hidratación con almacenamiento de minutos históricos
+    st.session_state['tiempo_historico_min'] = datos_db["tiempo"]
+    st.session_state['tiempo_estudio_min'] = datos_db["tiempo"]
     st.session_state['inicio_sesion_unix'] = time.time()
     st.session_state['advertencia_ph'] = False
     st.session_state['memo_reveladas'] = []
@@ -96,13 +98,9 @@ if st.session_state['auth'] == 'admin':
 elif st.session_state['auth'] == 'usuario':
     from modulos.modulo1 import mostrar_modulo1
     
-    segundos_esta_sesion = int(time.time() - st.session_state['inicio_sesion_unix'])
-    st.session_state['tiempo_estudio_seg'] = st.session_state['tiempo_historico_seg'] + segundos_esta_sesion
-    
-    horas_totales = st.session_state['tiempo_estudio_seg'] // 3600
-    minutos_totales = (st.session_state['tiempo_estudio_seg'] % 3600) // 60
-    segundos_totales = st.session_state['tiempo_estudio_seg'] % 60
-    reloj_formateado = f"{horas_totales:02d}:{minutos_totales:02d}:{segundos_totales:02d}"
+    # MODIFICADO: Telemetría síncrona pasiva en base a minutos transcurridos
+    minutos_esta_sesion = int((time.time() - st.session_state['inicio_sesion_unix']) / 60)
+    st.session_state['tiempo_estudio_min'] = st.session_state['tiempo_historico_min'] + minutos_esta_sesion
     
     try:
         db.sincronizar_progreso_db(
@@ -110,16 +108,17 @@ elif st.session_state['auth'] == 'usuario':
             st.session_state['puntos_acumulados'], 
             "1", 
             st.session_state['vidas'], 
-            st.session_state['tiempo_estudio_seg']
+            st.session_state['tiempo_estudio_min']
         )
     except:
         pass
     
+    # Renderizado estático estable de métricas
     c_tk, c_vd, c_pt, c_tm = st.columns(4)
     c_tk.metric("🔬 Investigador Actual", st.session_state['token_actual'])
     c_vd.metric("❤️ Vidas Críticas", f"{st.session_state['vidas']} / 3")
     c_pt.metric("🏆 Score Global", f"{st.session_state['puntos_acumulados']} pts")
-    c_tm.metric("⏱️ Tiempo Total de Estudio", reloj_formateado)
+    c_tm.metric("⏱️ Tiempo de Estudio", f"{st.session_state['tiempo_estudio_min']} min")
     
     if st.session_state['vidas'] <= 0:
         st.error("🚨 **SISTEMA BLOQUEADO:** Has agotado tus vidas clínicas.")
