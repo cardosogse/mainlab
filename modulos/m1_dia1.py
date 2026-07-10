@@ -53,43 +53,7 @@ def mostrar_dia1():
     st.markdown("<div class='lab-panel'>", unsafe_allow_html=True)
     st.markdown("### 🧠 Desafío de Consolidación: Memorama Atómico")
     
-    if len(st.session_state["memo_reveladas"]) == 2:
-        st.warning("🧩 Tienes dos tarjetas volteadas en el laboratorio. Revisa sus contenidos y presiona el botón para evaluar afinidad.")
-        
-        if st.button("🔍 COMPROBAR PAREJA ELEMENTAL", use_container_width=True):
-            idx1, idx2 = st.session_state["memo_reveladas"]
-            _, id_par1 = st.session_state["memo_tablero"][idx1]
-            _, id_par2 = st.session_state["memo_tablero"][idx2]
-            
-            if id_par1 == id_par2:
-                if id_par1 not in st.session_state["memo_resueltas"]:
-                    st.session_state["memo_resueltas"].append(id_par1)
-                    st.session_state["racha_consecutiva"] += 1
-                    puntos_ganados = 100
-                    
-                    if st.session_state["racha_consecutiva"] >= 2 and not st.session_state["licencia_extendida"]:
-                        puntos_ganados += 300
-                        st.session_state["licencia_extendida"] = True
-                        db.otorgar_tiempo_extra_db(st.session_state["token_actual"], dias_adicionales=7)
-                        st.toast("🚀 ¡RACHA CUÁNTICA! +7 días de licencia.", icon="🎁")
-                        
-                    st.session_state["puntos_acumulados"] += puntos_ganados
-                    
-                    db.sincronizar_progreso_db(
-                        st.session_state["token_actual"], 
-                        st.session_state["puntos_acumulados"], 
-                        "1", 
-                        st.session_state["vidas"],
-                        st.session_state["tiempo_estudio_seg"]
-                    )
-                st.toast("⚡ ¡Afinidad molecular correcta!", icon="✅")
-            else:
-                st.session_state["racha_consecutiva"] = 0
-                st.toast("❌ Las tarjetas no interactúan. Inténtalo de nuevo.", icon="⚠️")
-            
-            st.session_state["memo_reveladas"] = []
-            st.rerun()
-
+    # Renderizado reactivo del tablero usando Grid proporcional
     cols_memo = st.columns(5)
     for i in range(10):
         col_idx = i % 5
@@ -101,8 +65,50 @@ def mostrar_dia1():
             elif i in st.session_state["memo_reveladas"]:
                 st.button(f"👀 {val_tarjeta}", key=f"btn_rev_{i}", disabled=True, use_container_width=True)
             else:
+                # Bloquea clics adicionales si ya hay dos cartas procesándose
                 bloqueo_clic = len(st.session_state["memo_reveladas"]) >= 2
                 if st.button("⚛️", key=f"btn_act_{i}", use_container_width=True, disabled=bloqueo_clic):
                     st.session_state["memo_reveladas"].append(i)
                     st.rerun()
+                    
+    # MOTOR DE EVALUACIÓN AUTOMÁTICA EN SEGUNDO PLANO
+    if len(st.session_state["memo_reveladas"]) == 2:
+        idx1, idx2 = st.session_state["memo_reveladas"]
+        val1, id_par1 = st.session_state["memo_tablero"][idx1]
+        val2, id_par2 = st.session_state["memo_tablero"][idx2]
+        
+        if id_par1 == id_par2:
+            if id_par1 not in st.session_state["memo_resueltas"]:
+                st.session_state["memo_resueltas"].append(id_par1)
+                st.session_state["racha_consecutiva"] += 1
+                puntos_ganados = 100
+                
+                if st.session_state["racha_consecutiva"] >= 2 and not st.session_state["licencia_extendida"]:
+                    puntos_ganados += 300
+                    st.session_state["licencia_extendida"] = True
+                    db.otorgar_tiempo_extra_db(st.session_state["token_actual"], dias_adicionales=7)
+                    st.toast("🚀 ¡RACHA CUÁNTICA! +7 días de licencia.", icon="🎁")
+                    
+                st.session_state["puntos_acumulados"] += puntos_ganados
+                
+                # CORREGIDO: Uso de tiempo_estudio_min en lugar de segundos
+                db.sincronizar_progreso_db(
+                    st.session_state["token_actual"], 
+                    st.session_state["puntos_acumulados"], 
+                    "1", 
+                    st.session_state["vidas"],
+                    st.session_state["tiempo_estudio_min"]
+                )
+            st.toast("⚡ ¡Afinidad molecular correcta!", icon="✅")
+            st.session_state["memo_reveladas"] = []
+            st.rerun()
+        else:
+            st.session_state["racha_consecutiva"] = 0
+            st.error(f"❌ Las tarjetas no interactúan: '{val1}' y '{val2}' no son pareja.")
+            
+            # RETROALIMENTACIÓN DINÁMICA: Duerme el servidor 2 segundos para permitir ver las cartas
+            time.sleep(2.0)
+            st.session_state["memo_reveladas"] = []
+            st.rerun()
+            
     st.markdown("</div>", unsafe_allow_html=True)
