@@ -4,7 +4,7 @@ from datetime import timedelta
 import streamlit as st
 from supabase import create_client
 
-# Configuración
+# Configuración única
 SUPABASE_URL = st.secrets["supabase"]["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["supabase"]["SUPABASE_KEY"]
 DB_NAME = st.secrets["config"]["DB_NAME"]
@@ -29,14 +29,7 @@ def verificar_salud_sistema():
         supabase.table("tokens_acceso").select("token").limit(1).execute()
         reporte["detalles"].append("Conexión Supabase: Activa")
     except Exception as e:
-        reporte["status"] = "❌ CRÍTICO"
-        reporte["detalles"].append(f"Error Supabase: {str(e)[:40]}")
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT count(*) FROM tokens_acceso WHERE vidas < 0 OR score_puntos < 0")
-    inc = c.fetchone()[0]
-    if inc > 0: reporte["status"] = "⚠️ Alerta"; reporte["detalles"].append(f"Registros corruptos: {inc}")
-    conn.close()
+        reporte["status"] = "❌ CRÍTICO"; reporte["detalles"].append(f"Error Supabase: {str(e)[:40]}")
     return reporte
 
 def generar_token(dias):
@@ -109,7 +102,7 @@ def eliminar_token(token):
     c.execute("DELETE FROM tokens_acceso WHERE token = ?", (token,))
     conn.commit()
     conn.close()
-    
+
 def liberar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
