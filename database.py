@@ -4,7 +4,7 @@ from datetime import timedelta
 import streamlit as st
 from supabase import create_client
 
-# # --- CONFIGURACIÓN E INICIALIZACIÓN ---
+# # --- CONFIGURACIÓN ---
 try:
     SUPABASE_URL = st.secrets["supabase"]["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["supabase"]["SUPABASE_KEY"]
@@ -24,7 +24,7 @@ def inicializar_db():
     conn.commit()
     conn.close()
 
-# # --- FUNCIONES DE BASE DE DATOS ---
+# # --- FUNCIONES DISPONIBLES PARA APP.PY ---
 def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -75,12 +75,6 @@ def listar_todos_los_tokens():
     filas = c.fetchall()
     conn.close()
     return filas
-
-def otorgar_tiempo_extra_db(token, dias=7):
-    pass # Función reservada para uso futuro
-
-def sincronizar_progreso_db(token, puntos, mod):
-    pass # Función reservada para uso futuro
 
 def obtener_password_admin():
     return ADMIN_PASSWORD
