@@ -15,10 +15,11 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 def inicializar_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+    # Se unifican los nombres de columnas idénticos a Supabase para evitar colisiones
     c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso (
         token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
         score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT,
-        intentos_quiz INTEGER, tiempo_estudio_seg INTEGER, errores_quiz INTEGER)''')
+        intentos_quiz INTEGER, tiempo_estudio_seg INTEGER, errores_quizz INTEGER)''')
     c.execute('''CREATE TABLE IF NOT EXISTS admin_config (key TEXT PRIMARY KEY, value TEXT)''')
     c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', ?)", (ADMIN_PASSWORD,))
     conn.commit()
@@ -28,57 +29,42 @@ def generar_token(dias):
     prefix = "MLP-" if dias >= 90 else "ML-"
     caracteres_aleatorios = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
     token = f"{prefix}{caracteres_aleatorios}"
-    
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
     
-    # 1. Guardado Local
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("INSERT INTO tokens_acceso VALUES (?, 0, ?, 0, 3, '1', 0, 0, 0)", (token, fecha_exp))
     conn.commit()
     conn.close()
     
-    # 2. Sincronización con Supabase (Reincorporando 'en_uso': 0 para evitar el Not-Null constraint)
     try:
         supabase.table("tokens_acceso").insert({
-            "token": token, 
-            "en_uso": 0,  # Restaurado con éxito
-            "fecha_expiracion": fecha_exp,
-            "score_puntos": 0, 
-            "vidas": 3, 
-            "modulo_actual": "1",
-            "intentos_quiz": 0, 
-            "tiempo_estudio_seg": 0, 
-            "errores_quizz": 0  
+            "token": token, "en_uso": 0, "fecha_expiracion": fecha_exp,
+            "score_puntos": 0, "vidas": 3, "modulo_actual": "1",
+            "intentos_quiz": 0, "tiempo_estudio_seg": 0, "errores_quizz": 0  
         }).execute()
-    except Exception as e:
-        st.error(f"Error de sincronización con Supabase: {str(e)}")
+    except: pass
     return token
 
 def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT score_puntos, vidas, modulo_actual, errores_quiz, fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
+    c.execute("SELECT score_puntos, vidas, modulo_actual, errores_quizz, tiempo_estudio_seg, fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
     res = c.fetchone()
     if res:
-        score, vidas, modulo, errores, fecha_exp = res
+        score, vidas, modulo, errores, tiempo, fecha_exp = res
         hoy = datetime.date.today().strftime("%Y-%m-%d")
-        
         if hoy > fecha_exp:
             conn.close()
             try: supabase.table("tokens_acceso").update({"en_uso": 0, "modulo_actual": "EXPIRADO"}).eq("token", token).execute()
             except: pass
             return False, "expired"
-            
         c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
         conn.commit()
         conn.close()
-        
-        # Sincroniza el estado activo a la nube
         try: supabase.table("tokens_acceso").update({"en_uso": 1}).eq("token", token).execute()
         except: pass
-        
-        return True, {"puntos": score, "vidas": vidas, "modulo": modulo, "errores": errores}
+        return True, {"puntos": score, "vidas": vidas, "modulo": modulo, "errores": errores, "tiempo": tiempo}
     conn.close()
     return False, "invalid"
 
@@ -88,39 +74,57 @@ def eliminar_token(token):
     c.execute("DELETE FROM tokens_acceso WHERE token = ?", (token,))
     conn.commit()
     conn.close()
-    try:
-        supabase.table("tokens_acceso").delete().eq("token", token).execute()
+    try: supabase.table("tokens_acceso").delete().eq("token", token).execute()
     except: pass
 
-def sincronizar_progreso_db(token, puntos, mod, vidas):
+def sincronizar_progreso_db(token, puntos, mod, vidas, tiempo_seg):
+    """Sincronización Maestra: Salva absolutamente todas las métricas en cada llamada."""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ?, vidas = ? WHERE token = ?", (puntos, str(mod), vidas, token))
+    c.execute("""
+        UPDATE tokens_acceso 
+        SET score_puntos = ?, modulo_actual = ?, vidas = ?, tiempo_estudio_seg = ? 
+        WHERE token = ?
+    """, (puntos, str(mod), vidas, tiempo_seg, token))
     conn.commit()
     conn.close()
     try:
         supabase.table("tokens_acceso").update({
             "score_puntos": int(puntos), 
             "modulo_actual": str(mod), 
-            "vidas": int(vidas)
+            "vidas": int(vidas),
+            "tiempo_estudio_seg": int(tiempo_seg)
         }).eq("token", token).execute()
     except: pass
 
-def registrar_intento_quiz(token, nuevas_vidas, errores_totales):
+def registrar_intento_quiz(token, nuevos_errores, nuevas_vidas, tiempo_seg):
+    """Acumula intentos y errores de forma matemática real manteniendo el tiempo sincronizado."""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET intentos_quiz = intentos_quiz + 1, errores_quiz = ?, vidas = ? WHERE token = ?", (errores_totales, nuevas_vidas, token))
-    c.execute("SELECT intentos_quiz FROM tokens_acceso WHERE token = ?", (token,))
-    total_intentos = c.fetchone()[0]
+    c.execute("""
+        UPDATE tokens_acceso 
+        SET intentos_quiz = intentos_quiz + 1, 
+            errores_quizz = errores_quizz + ?, 
+            vidas = ?,
+            tiempo_estudio_seg = ?
+        WHERE token = ?
+    """, (nuevos_errores, nuevas_vidas, tiempo_seg, token))
+    
+    c.execute("SELECT intentos_quiz, errores_quizz FROM tokens_acceso WHERE token = ?", (token,))
+    res = c.fetchone()
     conn.commit()
     conn.close()
-    try:
-        supabase.table("tokens_acceso").update({
-            "vidas": int(nuevas_vidas), 
-            "errores_quizz": int(errores_totales),  
-            "intentos_quiz": int(total_intentos)
-        }).eq("token", token).execute()
-    except: pass
+    
+    if res:
+        intentos_totales, errores_totales = res
+        try:
+            supabase.table("tokens_acceso").update({
+                "vidas": int(nuevas_vidas), 
+                "errores_quizz": int(errores_totales),  
+                "intentos_quiz": int(intentos_totales),
+                "tiempo_estudio_seg": int(tiempo_seg)
+            }).eq("token", token).execute()
+        except: pass
 
 def otorgar_tiempo_extra_db(token, dias_adicionales=7):
     conn = sqlite3.connect(DB_NAME)
@@ -147,10 +151,9 @@ def obtener_password_admin():
 def listar_todos_los_tokens():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, tiempo_estudio_seg, errores_quiz FROM tokens_acceso")
+    c.execute("SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, tiempo_estudio_seg, errores_quizz FROM tokens_acceso")
     filas = c.fetchall()
     conn.close()
-    
     claves = ["Token", "Activo", "Expiracion", "Puntos", "Vidas", "Modulo", "Intentos Quiz", "Tiempo Estudio (s)", "Errores Quiz"]
     return [dict(zip(claves, f)) for f in filas]
 
@@ -162,10 +165,3 @@ def forzar_liberacion_sesion(token):
     conn.close()
     try: supabase.table("tokens_acceso").update({"en_uso": 0}).eq("token", token).execute()
     except: pass
-
-def verificar_salud_sistema():
-    try:
-        supabase.table("tokens_acceso").select("token", count="exact").limit(1).execute()
-        return {"status": "✅ Sistema Estable", "detalles": ["Conexión Supabase: OK", "Esquema de datos: Validado"]}
-    except Exception as e:
-        return {"status": "⚠️ Alerta de Inconsistencia", "detalles": [f"Error de enlace: {str(e)}"]}
