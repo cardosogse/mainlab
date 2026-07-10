@@ -24,7 +24,7 @@ def inicializar_db():
     conn.commit()
     conn.close()
 
-# # --- FUNCIONES MAESTRAS ---
+# # --- FUNCIONES DE BASE DE DATOS ---
 def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -76,23 +76,11 @@ def listar_todos_los_tokens():
     conn.close()
     return filas
 
-def sincronizar_progreso_db(token, puntos, mod):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (puntos, str(mod), token))
-    conn.commit()
-    conn.close()
-
 def otorgar_tiempo_extra_db(token, dias=7):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
-    res = c.fetchone()
-    if res:
-        nueva_fecha = datetime.datetime.strptime(res[0], "%Y-%m-%d").date() + timedelta(days=dias)
-        c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (nueva_fecha.strftime("%Y-%m-%d"), token))
-        conn.commit()
-    conn.close()
+    pass # Función reservada para uso futuro
+
+def sincronizar_progreso_db(token, puntos, mod):
+    pass # Función reservada para uso futuro
 
 def obtener_password_admin():
     return ADMIN_PASSWORD
