@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import database as db
 
 # # --- CONFIGURACIÓN E IMPORTACIONES ---
 try:
@@ -7,7 +8,7 @@ try:
         inicializar_db, validar_token, liberar_token, obtener_datos_usuario,
         generar_token, listar_todos_los_tokens, eliminar_token, 
         forzar_liberacion_sesion, obtener_password_admin, actualizar_password_admin,
-        sincronizar_progreso_db, otorgar_tiempo_extra_db
+        sincronizar_progreso_db, otorgar_tiempo_extra_db, verificar_salud_sistema
     )
     from assets import cargar_estilos, mezclar_memorama
     from modulos.m1_dia1 import mostrar_dia1
@@ -46,8 +47,8 @@ if modo_acceso == "Consola del Administrador":
     clave_admin = st.text_input("Introduce la Clave Maestra de Infraestructura:", type="password")
     
     if clave_admin == pass_maestra_actual:
-        st.success("Acceso verificado a los servicios centrales de SQLite.")
-        tab_generar, tab_control, tab_seguridad = st.tabs(["🆕 Generar Nuevos Tokens", "📊 Monitor de Alumnos", "⚙️ Seguridad"])
+        st.success("Acceso verificado a los servicios centrales.")
+        tab_generar, tab_control, tab_seguridad, tab_diagnostico = st.tabs(["🆕 Tokens", "📊 Monitor", "⚙️ Seguridad", "🩺 Diagnóstico"])
         
         with tab_generar:
             vigencia = st.number_input("Días de vigencia del token:", min_value=1, max_value=365, value=30)
@@ -58,28 +59,27 @@ if modo_acceso == "Consola del Administrador":
         with tab_control:
             datos_raw = listar_todos_los_tokens()
             if datos_raw:
-                df = pd.DataFrame(datos_raw, columns=["Token", "Activo", "Días Restantes", "Puntos", "Vidas", "Módulo Máx"])
+                df = pd.DataFrame(datos_raw, columns=["Token", "Activo", "Exp", "Puntos", "Vidas", "Mod", "Intents", "Tiempo", "Err"])
                 st.dataframe(df, use_container_width=True, hide_index=True)
                 token_seleccionado = st.selectbox("Selecciona un Token para Operar:", df["Token"].tolist())
-                
                 col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("🔓 Forzar Cierre"):
-                        forzar_liberacion_sesion(token_seleccionado)
-                        st.rerun()
-                with col2:
-                    if st.button("🗑️ Eliminar Token", key="btn_eliminar"):
-                        eliminar_token(token_seleccionado)
-                        st.success(f"Token {token_seleccionado} eliminado.")
-                        st.rerun()
-            else:
-                st.info("Base de datos sin tokens registrados.")
+                if col1.button("🔓 Forzar Cierre"): forzar_liberacion_sesion(token_seleccionado); st.rerun()
+                if col2.button("🗑️ Eliminar"): eliminar_token(token_seleccionado); st.rerun()
+            else: st.info("Base de datos sin registros.")
         
         with tab_seguridad:
             nueva_pass = st.text_input("Nueva Contraseña:", type="password")
-            if st.button("Guardar Cambios"):
-                actualizar_password_admin(nueva_pass)
-                st.success("Actualizado.")
+            if st.button("Guardar Cambios"): actualizar_password_admin(nueva_pass); st.success("Actualizado.")
+
+        with tab_diagnostico:
+            st.subheader("⚙️ Monitor de Salud del Sistema")
+            if st.button("Ejecutar Auditoría Completa"):
+                reporte = verificar_salud_sistema()
+                if "Estable" in reporte["status"]: st.success(reporte["status"])
+                else: st.error(reporte["status"])
+                for detalle in reporte["detalles"]: st.write(f"- {detalle}")
+            else: st.info("Presiona el botón para verificar fallas críticas.")
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 # # --- PORTAL DEL ESTUDIANTE ---
@@ -88,8 +88,7 @@ else:
         st.markdown("<div class='lab-panel'>", unsafe_allow_html=True)
         token_input = st.text_input("Introduce tu Token:", type="password")
         if st.button("Conectar"):
-            if token_input.strip() == pass_maestra_actual:
-                st.info("Redirigiendo a Consola...")
+            if token_input.strip() == pass_maestra_actual: st.warning("Usa la Consola Admin en el sidebar.")
             else:
                 es_valido, mensaje = validar_token(token_input)
                 if es_valido:
@@ -103,13 +102,9 @@ else:
         st.markdown("</div>", unsafe_allow_html=True)
     else:
         with st.sidebar:
-            if st.button("🚪 Cerrar Sesión"):
-                liberar_token(st.session_state['token_actual'])
-                st.session_state.clear()
-                st.rerun()
+            if st.button("🚪 Cerrar Sesión"): liberar_token(st.session_state['token_actual']); st.session_state.clear(); st.rerun()
         
-        if st.session_state['vidas'] <= 0:
-            st.error("🚨 COLAPSO METABÓLICO.")
+        if st.session_state['vidas'] <= 0: st.error("🚨 COLAPSO METABÓLICO.")
         else:
             estacion = st.radio("Cronograma:", ["Día 1", "Día 2", "Día 3", "Día 4"], horizontal=True)
             if "Día 1" in estacion: mostrar_dia1()
