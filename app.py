@@ -11,21 +11,17 @@ st.set_page_config(page_title="MainLab", layout="wide", page_icon="🧬")
 cargar_estilos()
 db.inicializar_db()
 
-# --- PANEL ADMINISTRADOR ---
+# --- FUNCION ADMINISTRADOR ---
 def panel_administrador():
     st.subheader("🔑 Consola de Gestión")
     t1, t2, t3, t4 = st.tabs(["🆕 Tokens", "📊 Monitor", "⚙️ Seguridad", "🩺 Diagnóstico"])
     with t1:
-        vig = st.number_input("Días de vigencia:", 1, 90, 30)
-        if st.button("Emitir Token"): st.code(db.generar_token(vig))
+        if st.button("Emitir Token"): st.code(db.generar_token(30))
     with t2:
         datos = db.listar_todos_los_tokens()
-        if datos:
-            st.dataframe(pd.DataFrame(datos, columns=["Token", "Uso", "Exp", "Puntos", "Vidas", "Mod", "Int", "Tiempo", "Err"]))
-            t_sel = st.selectbox("Token:", [d[0] for d in datos])
-            c1, c2 = st.columns(2)
-            if c1.button("🚫 Eliminar"): db.eliminar_token(t_sel); st.rerun()
-            if c2.button("🔓 Liberar"): db.liberar_token(t_sel); st.rerun()
+        st.dataframe(pd.DataFrame(datos, columns=["Token", "Uso", "Exp", "Puntos", "Vidas", "Mod", "Int", "Tiempo", "Err"]))
+        t_sel = st.selectbox("Token:", [d[0] for d in datos] if datos else [])
+        if st.button("🚫 Eliminar"): db.eliminar_token(t_sel); st.rerun()
     with t3:
         n_p = st.text_input("Nueva Clave:", type="password")
         if st.button("Actualizar"): db.actualizar_password_admin(n_p); st.success("Guardado")
@@ -35,7 +31,7 @@ def panel_administrador():
             for d in r["detalles"]: st.write(f"- {d}")
         if st.button("🛠️ Reparar"): st.success(db.limpiar_inconsistencias_db()); st.rerun()
 
-# --- FLUJO PRINCIPAL ---
+# --- FLUJO ---
 st.markdown("<h1 class='main-title'>MainLab</h1>", unsafe_allow_html=True)
 
 if 'auth' not in st.session_state: st.session_state['auth'] = None
@@ -49,8 +45,7 @@ if st.button("🚀 ACCEDER AL LABORATORIO"):
     elif db.validar_token(entrada)[0]:
         st.session_state['auth'] = entrada
         st.rerun()
-    else:
-        st.error("Credencial inválida")
+    else: st.error("Credencial inválida")
 
 if st.session_state['auth'] == 'admin':
     panel_administrador()
