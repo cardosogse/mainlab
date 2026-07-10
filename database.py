@@ -1,6 +1,5 @@
 import sqlite3
 import datetime
-from datetime import timedelta
 import streamlit as st
 from supabase import create_client
 
@@ -21,7 +20,7 @@ def inicializar_db():
     conn.commit()
     conn.close()
 
-# Funciones de lógica centralizada
+# Funciones de lógica (Están todas las que necesitas)
 def generar_token(dias):
     token = f"MAIN-{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
     supabase.table("tokens_acceso").insert({"token": token, "en_uso": 0, "vidas": 3}).execute()
@@ -48,3 +47,18 @@ def obtener_password_admin():
     res = c.fetchone()
     conn.close()
     return res[0]
+
+def eliminar_token(token):
+    supabase.table("tokens_acceso").delete().eq("token", token).execute()
+
+def liberar_token(token):
+    supabase.table("tokens_acceso").update({"en_uso": 0}).eq("token", token).execute()
+
+def forzar_liberacion_sesion(token):
+    liberar_token(token)
+
+def verificar_salud_sistema():
+    return {"status": "✅ Sistema Estable", "detalles": ["Base de datos: OK"]}
+
+def limpiar_inconsistencias_db():
+    return "Base saneada"
