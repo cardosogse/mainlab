@@ -1,5 +1,5 @@
 import streamlit as st
-from database import descontar_vida_db, sincronizar_progreso_db
+import database as db descontar_vida_db, sincronizar_progreso_db
 
 def mostrar_dia4():
     st.subheader("Día 4: Equilibrio Ácido-Base y Sistemas Amortiguadores Celulares")
