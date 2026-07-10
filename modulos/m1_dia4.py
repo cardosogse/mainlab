@@ -1,5 +1,5 @@
 import streamlit as st
-from data base import db descontar_vida_db, sincronizar_progreso_db
+import database as db  # Corrección: importación unificada y segura
 
 def mostrar_dia4():
     st.subheader("Día 4: Equilibrio Ácido-Base y Sistemas Amortiguadores Celulares")
@@ -27,13 +27,13 @@ def mostrar_dia4():
     if st.button("Inyectar 10 mL de HCl", use_container_width=True):
         token = st.session_state['token_actual']
         if "Agua" in solucion:
-            if not st.session_state["advertencia_ph"]:
+            if not st.session_state.get("advertencia_ph", False):
                 st.markdown("<div class='card-hint'>💡 <b>ALERTA DE SEGURIDAD:</b> El agua carece de sistemas amortiguadores. Presiona una vez más si deseas inyectar y desnaturalizar las proteínas de la muestra.</div>", unsafe_allow_html=True)
                 st.session_state["advertencia_ph"] = True
             else:
                 st.markdown("<div class='card-error'>🚨 <b>CHOQUE DE ACIDOSIS:</b> pH cayó a 2.0. Proteínas desnaturalizadas. <b>-1 Vida en la BD.</b></div>", unsafe_allow_html=True)
-                descontar_vida_db(token)
-                st.session_state["vidas"] = max(0, st.session_state["vidas"] - 1)
+                db.descontar_vida_db(token) # Llamada corregida
+                st.session_state["vidas"] = max(0, st.session_state.get("vidas", 3) - 1)
                 st.session_state["advertencia_ph"] = False
                 st.rerun()
         else:
@@ -57,16 +57,16 @@ def mostrar_dia4():
         elif errores == 0:
             st.balloons()
             st.success("🏆 ¡Felicidades! Récord perfecto. Progreso bloqueado anti-F5 en SQLite.")
-            sincronizar_progreso_db(token, st.session_state["puntos_acumulados"] + 200, 2)
-            st.session_state["puntos_acumulados"] += 200
+            db.sincronizar_progreso_db(token, st.session_state.get("puntos_acumulados", 0) + 200, 2) # Llamada corregida
+            st.session_state["puntos_acumulados"] = st.session_state.get("puntos_acumulados", 0) + 200
             st.rerun()
         else:
-            st.session_state["errores_quiz"] += 1
+            st.session_state["errores_quiz"] = st.session_state.get("errores_quiz", 0) + 1
             if st.session_state["errores_quiz"] == 1:
                 st.markdown(f"<div class='card-hint'>💡 Tienes {errores} error(es). Recuerda que la variación en un único centro quiral define un epímero. Corrige sin penalización.</div>", unsafe_allow_html=True)
             else:
-                descontar_vida_db(token)
-                st.session_state["vidas"] = max(0, st.session_state["vidas"] - 1)
+                db.descontar_vida_db(token) # Llamada corregida
+                st.session_state["vidas"] = max(0, st.session_state.get("vidas", 3) - 1)
                 st.error("❌ Fallo Clínico. Se ha descontado 1 Vida.")
                 st.session_state["errores_quiz"] = 0
                 st.rerun()
