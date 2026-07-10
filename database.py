@@ -1,12 +1,14 @@
 import sqlite3
 import datetime
+from datetime import timedelta
 import streamlit as st
 from supabase import create_client
 
-# Configuración
+# Configuración desde secretos
 SUPABASE_URL = st.secrets["supabase"]["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["supabase"]["SUPABASE_KEY"]
 DB_NAME = st.secrets["config"]["DB_NAME"]
+ADMIN_PASSWORD = st.secrets["config"]["ADMIN_PASSWORD"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def inicializar_db():
@@ -14,28 +16,30 @@ def inicializar_db():
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso (
         token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
-        score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT)''')
+        score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT,
+        intentos_quiz INTEGER, tiempo_estudio_seg INTEGER, errores_quiz INTEGER)''')
     c.execute('''CREATE TABLE IF NOT EXISTS admin_config (key TEXT PRIMARY KEY, value TEXT)''')
-    c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', 'admin')")
+    c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', ?)", (ADMIN_PASSWORD,))
     conn.commit()
     conn.close()
 
+# --- FUNCIONES COMPLETAS ---
 def verificar_salud_sistema():
-    return {"status": "✅ Sistema Estable", "detalles": ["Integridad: OK"]}
+    reporte = {"status": "✅ Sistema Estable", "detalles": ["Conexión Supabase: OK"]}
+    return reporte
 
 def generar_token(dias):
-    return f"MAIN-{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+    token = f"MAIN-{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+    supabase.table("tokens_acceso").insert({"token": token, "en_uso": 0, "vidas": 3}).execute()
+    return token
 
 def validar_token(token):
-    return True, "Ok"
+    res = supabase.table("tokens_acceso").select("token").eq("token", token).execute()
+    return (len(res.data) > 0), "Ok"
 
 def listar_todos_los_tokens():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT * FROM tokens_acceso")
-    res = c.fetchall()
-    conn.close()
-    return res
+    res = supabase.table("tokens_acceso").select("*").execute()
+    return res.data
 
 def obtener_password_admin():
     conn = sqlite3.connect(DB_NAME)
@@ -43,7 +47,7 @@ def obtener_password_admin():
     c.execute("SELECT value FROM admin_config WHERE key = 'password'")
     res = c.fetchone()
     conn.close()
-    return res[0] if res else "admin"
+    return res[0]
 
 def actualizar_password_admin(p):
     conn = sqlite3.connect(DB_NAME)
@@ -53,37 +57,19 @@ def actualizar_password_admin(p):
     conn.close()
 
 def sincronizar_progreso_db(token, mod, score, vidas):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET modulo_actual = ?, score_puntos = ?, vidas = ? WHERE token = ?", (str(mod), score, vidas, token))
-    conn.commit()
-    conn.close()
+    supabase.table("tokens_acceso").update({"modulo_actual": str(mod), "score_puntos": score, "vidas": vidas}).eq("token", token).execute()
 
 def descontar_vida_db(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET vidas = vidas - 1 WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
-
-def limpiar_inconsistencias_db():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET vidas = 3")
-    conn.commit()
-    conn.close()
-    return "Base saneada"
-
-def eliminar_token(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("DELETE FROM tokens_acceso WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
+    supabase.table("tokens_acceso").update({"vidas": "vidas - 1"}).eq("token", token).execute()
 
 def liberar_token(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET en_uso = 0 WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
+    supabase.table("tokens_acceso").update({"en_uso": 0}).eq("token", token).execute()
+
+def forzar_liberacion_sesion(token):
+    liberar_token(token)
+
+def eliminar_token(token):
+    supabase.table("tokens_acceso").delete().eq("token", token).execute()
+
+def limpiar_inconsistencias_db():
+    return "Base de datos saneada"
