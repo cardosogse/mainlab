@@ -24,7 +24,7 @@ def inicializar_db():
     conn.commit()
     conn.close()
 
-# # --- FUNCIONES DE ACCESO Y SESIÓN ---
+# # --- FUNCIONES MAESTRAS ---
 def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -51,7 +51,6 @@ def obtener_datos_usuario(token):
     conn.close()
     return res if res else (0, 3, 0)
 
-# # --- GESTIÓN DE TOKENS (ADMIN) ---
 def generar_token(dias):
     token = f"MAIN-{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
@@ -77,15 +76,24 @@ def listar_todos_los_tokens():
     conn.close()
     return filas
 
-# # --- SINCRONIZACIÓN DE PROGRESO ---
-def sincronizar_progreso_db(token, nuevos_puntos, modulo_destino):
+def sincronizar_progreso_db(token, puntos, mod):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (nuevos_puntos, str(modulo_destino), token))
+    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (puntos, str(mod), token))
     conn.commit()
     conn.close()
 
-# # --- CONFIGURACIÓN ADMIN ---
+def otorgar_tiempo_extra_db(token, dias=7):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
+    res = c.fetchone()
+    if res:
+        nueva_fecha = datetime.datetime.strptime(res[0], "%Y-%m-%d").date() + timedelta(days=dias)
+        c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (nueva_fecha.strftime("%Y-%m-%d"), token))
+        conn.commit()
+    conn.close()
+
 def obtener_password_admin():
     return ADMIN_PASSWORD
 
