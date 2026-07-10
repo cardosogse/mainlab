@@ -1,5 +1,5 @@
 import streamlit as st
-import database as db  # Importación unificada
+import database as db  # Importación unificada por consistencia
 from assets import ELEMENTOS, generar_svg_enlace
 
 def mostrar_dia3():
