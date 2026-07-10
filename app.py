@@ -12,7 +12,7 @@ if 'auth' not in st.session_state: st.session_state['auth'] = None
 
 pass_maestra_actual = db.obtener_password_admin()
 
-# Cabecera y Cierre de Sesión Seguro
+# Cabecera Estilizada y Botón de Desconexión Superior
 col_tit, col_logout = st.columns([4, 1])
 with col_tit:
     st.markdown("<h1 class='main-title'>Main<span class='main-title-suffix'>Lab</span></h1>", unsafe_allow_html=True)
@@ -20,7 +20,6 @@ with col_logout:
     if st.session_state['auth'] is not None:
         st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
         if st.button("Cerrar Sesión 🚪", use_container_width=True):
-            # Al salir salvamos el tiempo final antes de limpiar la sesión
             if st.session_state['auth'] == 'usuario':
                 db.sincronizar_progreso_db(
                     st.session_state['token_actual'], 
@@ -39,7 +38,7 @@ def hidratar_sesion_alumno(token, datos_db):
     st.session_state['errores_quiz'] = datos_db["errores"]
     st.session_state['tiempo_historico_seg'] = datos_db["tiempo"]
     st.session_state['tiempo_estudio_seg'] = datos_db["tiempo"]
-    st.session_state['inicio_sesion_unix'] = time.time()  # Reloj base
+    st.session_state['inicio_sesion_unix'] = time.time()
     st.session_state['advertencia_ph'] = False
     st.session_state['memo_reveladas'] = []
     st.session_state['memo_resueltas'] = []
@@ -49,7 +48,7 @@ def hidratar_sesion_alumno(token, datos_db):
     if 'memo_tablero' not in st.session_state or not st.session_state['memo_tablero']:
         st.session_state['memo_tablero'] = mezclar_memorama()
 
-# Acceso Unificado
+# Portal de Acceso Operativo
 if st.session_state['auth'] is None or st.session_state['auth'] is False:
     entrada = st.text_input("Ingresa Token o Clave Maestra:", type="password")
     if st.button("🚀 ACCEDER AL LABORATORIO", use_container_width=True):
@@ -94,33 +93,25 @@ if st.session_state['auth'] == 'admin':
             with c_del:
                 if st.button("❌ Borrar Token Definitivamente", use_container_width=True):
                     db.eliminar_token(token_sel)
-                    st.toast(f"Token {token_sel} eliminado con éxito.", icon="🗑️")
+                    st.toast(f"Token {token_sel} eliminado con éxito de Supabase.", icon="🗑️")
                     st.rerun()
         else: st.info("No hay tokens ni alumnos registrados en el sistema.")
 
-# --- INTERFAZ DEL ALUMNO ---
+# --- INTERFAZ DEL ALUMNO (SIN BARRA LATERAL) ---
 elif st.session_state['auth'] == 'usuario':
     from modulos.modulo1 import mostrar_modulo1
     
-    # ⏱️ CÁLCULO DINÁMICO DEL RELOJ DE ESTUDIO
+    # Cálculo automático del tiempo de estudio
     segundos_esta_sesion = int(time.time() - st.session_state['inicio_sesion_unix'])
     st.session_state['tiempo_estudio_seg'] = st.session_state['tiempo_historico_seg'] + segundos_esta_sesion
     
-    # Formateo visual del reloj de tiempo (HH:MM:SS)
     horas_totales = st.session_state['tiempo_estudio_seg'] // 3600
     minutos_totales = (st.session_state['tiempo_estudio_seg'] % 3600) // 60
     segundos_totales = st.session_state['tiempo_estudio_seg'] % 60
     reloj_formateado = f"{horas_totales:02d}:{minutos_totales:02d}:{segundos_totales:02d}"
     
-    # Renderizado de Métricas del Alumno
-    c_tk, c_vd, c_pt, c_tm = st.columns(4)
-    c_tk.metric("🔬 Investigador Actual", st.session_state['token_actual'])
-    c_vd.metric("❤️ Vidas Críticas", f"{st.session_state['vidas']} / 3")
-    c_pt.metric("🏆 Score Global", f"{st.session_state['puntos_acumulados']} pts")
-    c_tm.metric("⏱️ Tiempo Total de Estudio", reloj_formateado)
-    
-    # Botón para forzar actualización del reloj manual
-    if st.sidebar.button("🔄 Sincronizar Reloj con Supabase"):
+    # Sincronización telemétrica automática y silenciosa
+    try:
         db.sincronizar_progreso_db(
             st.session_state['token_actual'], 
             st.session_state['puntos_acumulados'], 
@@ -128,7 +119,15 @@ elif st.session_state['auth'] == 'usuario':
             st.session_state['vidas'], 
             st.session_state['tiempo_estudio_seg']
         )
-        st.toast("Tiempo guardado correctamente.", icon="🕒")
+    except:
+        pass
+    
+    # Distribución visual de métricas (4 columnas balanceadas)
+    c_tk, c_vd, c_pt, c_tm = st.columns(4)
+    c_tk.metric("🔬 Investigador Actual", st.session_state['token_actual'])
+    c_vd.metric("❤️ Vidas Críticas", f"{st.session_state['vidas']} / 3")
+    c_pt.metric("🏆 Score Global", f"{st.session_state['puntos_acumulados']} pts")
+    c_tm.metric("⏱️ Tiempo Total de Estudio", reloj_formateado)
     
     if st.session_state['vidas'] <= 0:
         st.error("🚨 **SISTEMA BLOQUEADO:** Has agotado tus vidas clínicas. Contacta al docente del laboratorio.")
