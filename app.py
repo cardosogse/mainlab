@@ -5,7 +5,7 @@ import pandas as pd
 try:
     from database import (
         inicializar_db, validar_token, liberar_token, obtener_datos_usuario,
-        generar_token, listar_todos_los_tokens, revocar_eliminar_token, 
+        generar_token, listar_todos_los_tokens, eliminar_token, 
         forzar_liberacion_sesion, obtener_password_admin, actualizar_password_admin
     )
     from assets import cargar_estilos, mezclar_memorama
@@ -66,14 +66,11 @@ if modo_acceso == "Consola del Administrador":
                     if st.button("🔓 Forzar Cierre"):
                         forzar_liberacion_sesion(token_seleccionado)
                         st.rerun()
-               # Dentro de tab_control en app.py:
-# ... (arriba de esto está tu bloque de botones)
                 with col2:
                     if st.button("🗑️ Eliminar Token", key="btn_eliminar"):
                         eliminar_token(token_seleccionado)
-                        st.success(f"Token {token_seleccionado} eliminado del sistema.")
+                        st.success(f"Token {token_seleccionado} eliminado.")
                         st.rerun()
-            # Este 'else' debe estar alineado con 'if datos_raw:'
             else:
                 st.info("Base de datos sin tokens registrados.")
         
@@ -104,7 +101,6 @@ else:
                 else: st.error(f"Fallo: {mensaje}")
         st.markdown("</div>", unsafe_allow_html=True)
     else:
-        # # --- NAVEGACIÓN Y SESIÓN ---
         with st.sidebar:
             if st.button("🚪 Cerrar Sesión"):
                 liberar_token(st.session_state['token_actual'])
