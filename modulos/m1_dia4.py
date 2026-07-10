@@ -7,6 +7,8 @@ def mostrar_dia4():
     st.markdown("<div class='lab-panel'>", unsafe_allow_html=True)
     st.markdown("### Estructura de los Grupos Funcionales Secundarios")
     grupo = st.selectbox("Grupo Funcional a Inspeccionar:", ["Carbonilo (C=O)", "Metilo (CH3)", "Hidroxilo (-OH)", "Tiol / Disulfuro (-SH)"])
+    
+    # CORREGIDO: Uso estricto de la variable 'grupo'
     if "Carbonilo" in grupo: 
         st.warning("**Carbonilo:** Centro neurálgico del metabolismo de glúcidos.")
     elif "Metilo" in grupo:
