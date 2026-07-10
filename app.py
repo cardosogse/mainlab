@@ -6,7 +6,8 @@ try:
     from database import (
         inicializar_db, validar_token, liberar_token, obtener_datos_usuario,
         generar_token, listar_todos_los_tokens, eliminar_token, 
-        forzar_liberacion_sesion, obtener_password_admin, actualizar_password_admin
+        forzar_liberacion_sesion, obtener_password_admin, actualizar_password_admin,
+        sincronizar_progreso_db, otorgar_tiempo_extra_db
     )
     from assets import cargar_estilos, mezclar_memorama
     from modulos.m1_dia1 import mostrar_dia1
@@ -15,7 +16,7 @@ try:
     from modulos.m1_dia4 import mostrar_dia4
     from modulos.modulo2 import mostrar_modulo2
 except ImportError as e:
-    st.error(f"Error de conexión con base de datos: {e}")
+    st.error(f"Error de configuración: {e}")
     st.stop()
 
 # # --- INICIALIZACIÓN ---
