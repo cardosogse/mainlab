@@ -1,7 +1,7 @@
 import streamlit as st
 import random
 
-# DEFINICIÓN GLOBAL MAESTRA - Evita el ImportError en m1_dia3.py
+# DEFINICIÓN GLOBAL MAESTRA - Esto es lo que está buscando m1_dia3.py
 ELEMENTOS = {
     "Carbono (C)": {"fuerza": 2.55, "color": "#ffb142", "sym": "C"},
     "Hidrógeno (H)": {"fuerza": 2.20, "color": "#00e5ff", "sym": "H"},
@@ -9,7 +9,6 @@ ELEMENTOS = {
     "Nitrógeno (N)": {"fuerza": 3.04, "color": "#33d9b2", "sym": "N"},
     "Fósforo (P)": {"fuerza": 2.19, "color": "#ff7ff5", "sym": "P"},
     "Azufre (S)": {"fuerza": 2.58, "color": "#ffda79", "sym": "S"},
-    "Oxígeno (O)": {"fuerza": 3.44, "color": "#ff5252", "sym": "O"},
     "Sodio (Na)": {"fuerza": 0.93, "color": "#00e5ff", "sym": "Na"},
     "Cloro (Cl)": {"fuerza": 3.16, "color": "#ffb142", "sym": "Cl"}
 }
@@ -17,7 +16,6 @@ ELEMENTOS = {
 def cargar_estilos():
     st.markdown("""
     <style>
-        /* Fondo Universo: Negro Absoluto + Nebulosas de polvo cósmico */
         .stApp {
             background-color: #000000 !important;
             background-image: 
@@ -29,7 +27,16 @@ def cargar_estilos():
             background-position: 0 0, 0 0, 0 0, 40px 60px;
             background-attachment: fixed;
         }
-        .main-title { text-align: center; color: #ffffff; font-size: 3.8rem; font-weight: 800; margin-bottom: 0px; letter-spacing: 2px; }
+        .main-title { 
+            text-align: center !important; 
+            color: #ffffff; 
+            font-size: 3.8rem; 
+            font-weight: 800; 
+            margin-bottom: 21px; 
+            letter-spacing: 2px;
+            display: block !important;
+            width: 100% !important;
+        }
         .main-title-suffix { font-weight: 300; animation: pulso-neon 2.5s infinite ease-in-out; }
         
         @keyframes pulso-neon {
@@ -37,7 +44,6 @@ def cargar_estilos():
             50% { text-shadow: 0 0 21px #00e5ff, 0 0 34px #00e5ff; color: #ffffff; }
         }
         
-        /* Contenedores con espaciados basados en Fibonacci (Margen: 21px, Radio: 13px, Padding: 34px) */
         .lab-panel { 
             background-color: rgba(15, 23, 42, 0.65) !important; 
             border: 1px solid rgba(255, 255, 255, 0.08) !important;
@@ -49,7 +55,6 @@ def cargar_estilos():
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
         }
         
-        /* Botones Neón Estilizados con Proporción Áurea (Padding: 13px vertical, 34px horizontal) */
         .stButton>button {
             background: rgba(0, 229, 255, 0.03) !important;
             color: #00e5ff !important;
@@ -84,7 +89,6 @@ def obtener_svg_atomo(modelo_nombre):
         return "<svg viewBox='0 0 100 100' width='90' height='90'><circle cx='50' cy='50' r='34' fill='#00e5ff' opacity='0.25'/></svg>"
 
 def generar_svg_enlace(sym1, f1, c1, sym2, f2, c2):
-    diff = abs(f1 - f2)
     ellipse_x = 100 if f1 > f2 else (140 if f2 > f1 else 120)
     return f"""<div style='display:flex; justify-content:center; align-items:center; width:100%; height:130px;'>
         <svg viewBox='0 0 240 120' width='100%' height='100%'>
