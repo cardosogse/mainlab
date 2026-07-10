@@ -36,8 +36,8 @@ def hidratar_sesion_alumno(token, datos_db):
     if 'memo_tablero' not in st.session_state or not st.session_state['memo_tablero']:
         st.session_state['memo_tablero'] = mezclar_memorama()
 
-# Formulario de Acceso Unificado
-if st.session_state['auth'] is減 None or st.session_state['auth'] is False:
+# Formulario de Acceso Unificado (CORREGIDO)
+if st.session_state['auth'] is None or st.session_state['auth'] is False:
     entrada = st.text_input("Ingresa Token o Clave Maestra:", type="password")
     if st.button("🚀 ACCEDER AL LABORATORIO", use_container_width=True):
         if entrada == pass_maestra_actual:
