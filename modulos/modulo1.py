@@ -1,10 +1,12 @@
 import streamlit as st
-from modulos.m1_dia1 import mostrar_dia1
-from modulos.m1_dia2 import mostrar_dia2
-from modulos.m1_dia3 import mostrar_dia3
-from modulos.m1_dia4 import mostrar_dia4
 
 def mostrar_modulo1():
+    # Importación diferida para romper el bucle circular de dependencias
+    from modulos.m1_dia1 import mostrar_dia1
+    from modulos.m1_dia2 import mostrar_dia2
+    from modulos.m1_dia3 import mostrar_dia3
+    from modulos.m1_dia4 import mostrar_dia4
+    
     st.markdown("<h2 style='color:#ffffff; margin-top:0;'>Unidad 1: Fundamentos de Química Biológica</h2>", unsafe_allow_html=True)
     
     estacion_actual = st.radio(
