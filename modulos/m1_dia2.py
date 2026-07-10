@@ -1,5 +1,5 @@
 import streamlit as st
-import database as db  # Importación unificada para evitar bucles circulares
+import database as db  # Importación unificada por consistencia
 
 def mostrar_dia2():
     st.subheader("Día 2: El Micro-Constructor Atómico y Propiedades Periódicas")
