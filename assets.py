@@ -1,36 +1,55 @@
 import streamlit as st
 import random
 
+# DEFINICIÓN GLOBAL MAESTRA - Evita el ImportError en m1_dia3.py
+ELEMENTOS = {
+    "Carbono (C)": {"fuerza": 2.55, "color": "#ffb142", "sym": "C"},
+    "Hidrógeno (H)": {"fuerza": 2.20, "color": "#00e5ff", "sym": "H"},
+    "Oxígeno (O)": {"fuerza": 3.44, "color": "#ff5252", "sym": "O"},
+    "Nitrógeno (N)": {"fuerza": 3.04, "color": "#33d9b2", "sym": "N"},
+    "Fósforo (P)": {"fuerza": 2.19, "color": "#ff7ff5", "sym": "P"},
+    "Azufre (S)": {"fuerza": 2.58, "color": "#ffda79", "sym": "S"},
+    "Oxígeno (O)": {"fuerza": 3.44, "color": "#ff5252", "sym": "O"},
+    "Sodio (Na)": {"fuerza": 0.93, "color": "#00e5ff", "sym": "Na"},
+    "Cloro (Cl)": {"fuerza": 3.16, "color": "#ffb142", "sym": "Cl"}
+}
+
 def cargar_estilos():
     st.markdown("""
     <style>
+        /* Fondo Universo: Negro Absoluto + Nebulosas de polvo cósmico */
         .stApp {
             background-color: #000000 !important;
             background-image: 
-                radial-gradient(circle at 20% 30%, rgba(0, 229, 255, 0.05) 0%, transparent 45%),
-                radial-gradient(circle at 75% 70%, rgba(156, 39, 176, 0.06) 0%, transparent 50%);
+                radial-gradient(circle at 20% 30%, rgba(0, 229, 255, 0.06) 0%, transparent 45%),
+                radial-gradient(circle at 75% 70%, rgba(156, 39, 176, 0.07) 0%, transparent 50%),
+                radial-gradient(white 1px, transparent 1px),
+                radial-gradient(white 1.5px, transparent 1.5px);
+            background-size: 100% 100%, 100% 100%, 250px 250px, 160px 150px;
+            background-position: 0 0, 0 0, 0 0, 40px 60px;
             background-attachment: fixed;
         }
-        .main-title { text-align: center; color: #ffffff; font-size: 3.8rem; font-weight: 800; margin-bottom: 0px; }
+        .main-title { text-align: center; color: #ffffff; font-size: 3.8rem; font-weight: 800; margin-bottom: 0px; letter-spacing: 2px; }
         .main-title-suffix { font-weight: 300; animation: pulso-neon 2.5s infinite ease-in-out; }
         
         @keyframes pulso-neon {
-            0%, 100% { text-shadow: 0 0 5px #00e5ff; color: #00e5ff; }
-            50% { text-shadow: 0 0 21px #00e5ff; color: #ffffff; }
+            0%, 100% { text-shadow: 0 0 5px #00e5ff, 0 0 10px #00e5ff; color: #00e5ff; }
+            50% { text-shadow: 0 0 21px #00e5ff, 0 0 34px #00e5ff; color: #ffffff; }
         }
         
-        /* Contenedores con espaciados de Fibonacci (Margen: 21px, Radio: 13px) */
+        /* Contenedores con espaciados basados en Fibonacci (Margen: 21px, Radio: 13px, Padding: 34px) */
         .lab-panel { 
-            background-color: rgba(15, 23, 42, 0.55) !important; 
+            background-color: rgba(15, 23, 42, 0.65) !important; 
             border: 1px solid rgba(255, 255, 255, 0.08) !important;
             border-left: 5px solid #00e5ff !important; 
             padding: 34px; 
             border-radius: 13px; 
             margin-bottom: 21px; 
             backdrop-filter: blur(13px);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
         }
         
-        /* Botonera Neón con Proporción Áurea (Padding vertical: 13px, Horizontal: 34px) */
+        /* Botones Neón Estilizados con Proporción Áurea (Padding: 13px vertical, 34px horizontal) */
         .stButton>button {
             background: rgba(0, 229, 255, 0.03) !important;
             color: #00e5ff !important;
@@ -38,16 +57,17 @@ def cargar_estilos():
             border-radius: 8px !important;
             padding: 13px 34px !important;
             font-weight: bold !important;
-            transition: all 0.3s ease !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         .stButton>button:hover {
-            background: rgba(0, 229, 255, 0.15) !important;
+            background: rgba(0, 229, 255, 0.18) !important;
             border-color: #00e5ff !important;
+            color: #ffffff !important;
             box-shadow: 0 0 21px rgba(0, 229, 255, 0.6) !important;
         }
-        .card-success { border-left: 5px solid #4caf50; padding: 21px; background: rgba(76,175,80,0.05); margin-top: 13px; }
-        .card-error { border-left: 5px solid #f44336; padding: 21px; background: rgba(244,67,54,0.05); margin-top: 13px; }
-        .card-hint { border-left: 5px solid #ffb142; padding: 21px; background: rgba(255,177,66,0.05); margin-top: 13px; }
+        .card-success { border-left: 5px solid #4caf50; padding: 21px; background: rgba(76,175,80,0.05); margin-top: 13px; border-radius: 8px; }
+        .card-error { border-left: 5px solid #f44336; padding: 21px; background: rgba(244,67,54,0.05); margin-top: 13px; border-radius: 8px; }
+        .card-hint { border-left: 5px solid #ffb142; padding: 21px; background: rgba(255,177,66,0.05); margin-top: 13px; color: #ffda79; border-radius: 8px; }
     </style>
     """, unsafe_allow_html=True)
 
