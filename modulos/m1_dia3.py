@@ -1,11 +1,19 @@
 import streamlit as st
+import database as db  # Importación unificada
 from assets import ELEMENTOS, generar_svg_enlace
 
 def mostrar_dia3():
     st.subheader("Día 3: El Reactor de Fusión Atómica e Interacciones Moleculares")
     st.write("Estudia cómo la disparidad en la tracción de electrones determina la estabilidad de las uniones y la solvatación biológica celular.")
     
-    escala_pauling = {"Oxígeno (O)": 3.44, "Hidrógeno (H)": 2.20, "Carbono (C)": 2.55, "Sodio (Na)": 0.93, "Cloro (Cl)": 3.16, "Nitrógeno (N)": 3.04}
+    escala_pauling = {
+        "Oxígeno (O)": 3.44, 
+        "Hidrógeno (H)": 2.20, 
+        "Carbono (C)": 2.55, 
+        "Sodio (Na)": 0.93, 
+        "Cloro (Cl)": 3.16, 
+        "Nitrógeno (N)": 3.04
+    }
     
     st.markdown("<div class='lab-panel'>", unsafe_allow_html=True)
     st.markdown("### 🧬 Reactor de Fusión de Enlaces")
@@ -26,7 +34,11 @@ def mostrar_dia3():
             color_a = ELEMENTOS.get(atomo_a, {"color": "#00e5ff"})["color"]
             color_b = ELEMENTOS.get(atomo_b, {"color": "#ff5252"})["color"]
             
-            st.components.v1.html(generar_svg_enlace(sym_a, escala_pauling[atomo_a], color_a, sym_b, escala_pauling[atomo_b], color_b), height=140, scrolling=False)
+            st.components.v1.html(
+                generar_svg_enlace(sym_a, escala_pauling[atomo_a], color_a, sym_b, escala_pauling[atomo_b], color_b), 
+                height=140, 
+                scrolling=False
+            )
             
             if diff < 0.4:
                 st.success("🔬 Enlace Covalente No Polar (Apolar)")
