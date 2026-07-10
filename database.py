@@ -1,6 +1,8 @@
 import sqlite3
 import datetime
 from datetime import timedelta
+import random
+import string
 import streamlit as st
 from supabase import create_client
 
@@ -23,13 +25,19 @@ def inicializar_db():
     conn.close()
 
 def generar_token(dias):
-    token = f"MAIN-{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+    # Lógica de longitud corregida y optimizada según vigencia
+    prefix = "MLP-" if dias >= 90 else "ML-"
+    caracteres_aleatorios = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    token = f"{prefix}{caracteres_aleatorios}"
+    
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
+    
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("INSERT INTO tokens_acceso VALUES (?, 0, ?, 0, 3, '1', 0, 0, 0)", (token, fecha_exp))
     conn.commit()
     conn.close()
+    
     try:
         supabase.table("tokens_acceso").insert({
             "token": token, "en_uso": 0, "fecha_expiracion": fecha_exp,
@@ -42,17 +50,38 @@ def generar_token(dias):
 def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT score_puntos, vidas, modulo_actual, errores_quiz FROM tokens_acceso WHERE token = ?", (token,))
+    c.execute("SELECT score_puntos, vidas, modulo_actual, errores_quiz, fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
     res = c.fetchone()
     if res:
+        score, vidas, modulo, errores, fecha_exp = res
+        hoy = datetime.date.today().strftime("%Y-%m-%d")
+        
+        # Auditoría de caducidad automática informada a Supabase
+        if hoy > fecha_exp:
+            conn.close()
+            try: supabase.table("tokens_acceso").update({"en_uso": 0, "modulo_actual": "EXPIRADO"}).eq("token", token).execute()
+            except: pass
+            return False, "expired"
+            
         c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
         conn.commit()
         conn.close()
         try: supabase.table("tokens_acceso").update({"en_uso": 1}).eq("token", token).execute()
         except: pass
-        return True, {"puntos": res[0], "vidas": res[1], "modulo": res[2], "errores": res[3]}
+        return True, {"puntos": score, "vidas": vidas, "modulo": modulo, "errores": errores}
     conn.close()
-    return False, None
+    return False, "invalid"
+
+def eliminar_token(token):
+    # Eliminación unificada y sincronizada con Supabase
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM tokens_acceso WHERE token = ?", (token,))
+    conn.commit()
+    conn.close()
+    try:
+        supabase.table("tokens_acceso").delete().eq("token", token).execute()
+    except: pass
 
 def sincronizar_progreso_db(token, puntos, mod, vidas):
     conn = sqlite3.connect(DB_NAME)
@@ -106,8 +135,6 @@ def listar_todos_los_tokens():
     c.execute("SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, errores_quiz FROM tokens_acceso")
     filas = c.fetchall()
     conn.close()
-    
-    # Formateo explícito a diccionarios para compatibilidad total con Pandas DataFrame
     claves = ["Token", "Activo", "Expiracion", "Puntos", "Vidas", "Modulo", "Intentos Quiz", "Errores Quiz"]
     return [dict(zip(claves, f)) for f in filas]
 
