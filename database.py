@@ -4,7 +4,7 @@ from datetime import timedelta
 import streamlit as st
 from supabase import create_client
 
-# # --- CONFIGURACIÓN ---
+# # --- CONFIGURACIÓN E INICIALIZACIÓN ---
 try:
     SUPABASE_URL = st.secrets["supabase"]["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["supabase"]["SUPABASE_KEY"]
@@ -15,7 +15,6 @@ except Exception as e:
     st.error(f"Error de configuración: {e}")
     st.stop()
 
-# # --- FUNCIONES DE BASE DE DATOS ---
 def inicializar_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -25,22 +24,36 @@ def inicializar_db():
     conn.commit()
     conn.close()
 
+# # --- FUNCIONES DE ACCESO Y SESIÓN ---
 def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT en_uso FROM tokens_acceso WHERE token = ?", (token,))
-    res = c.fetchone()
-    if not res:
-        conn.close()
-        return False, "Token no registrado."
     c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
     conn.commit()
     conn.close()
     return True, "Token Válido"
 
+def liberar_token(token):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("UPDATE tokens_acceso SET en_uso = 0 WHERE token = ?", (token,))
+    conn.commit()
+    conn.close()
+
+def forzar_liberacion_sesion(token):
+    liberar_token(token)
+
+def obtener_datos_usuario(token):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT score_puntos, vidas, modulo_actual FROM tokens_acceso WHERE token = ?", (token,))
+    res = c.fetchone()
+    conn.close()
+    return res if res else (0, 3, 0)
+
+# # --- GESTIÓN DE TOKENS (ADMIN) ---
 def generar_token(dias):
-    timestamp = datetime.datetime.now().strftime("%H%M%S")
-    token = f"MAIN-{datetime.date.today().strftime('%y%m%d')}-{timestamp}"
+    token = f"MAIN-{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -56,17 +69,6 @@ def eliminar_token(token):
     conn.commit()
     conn.close()
 
-def liberar_token(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET en_uso = 0 WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
-
-# ESTA ES LA FUNCIÓN QUE TE ESTABA DANDO EL ERROR:
-def forzar_liberacion_sesion(token):
-    liberar_token(token)
-
 def listar_todos_los_tokens():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -75,14 +77,15 @@ def listar_todos_los_tokens():
     conn.close()
     return filas
 
-def obtener_datos_usuario(token):
+# # --- SINCRONIZACIÓN DE PROGRESO ---
+def sincronizar_progreso_db(token, nuevos_puntos, modulo_destino):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT score_puntos, vidas, modulo_actual FROM tokens_acceso WHERE token = ?", (token,))
-    res = c.fetchone()
+    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (nuevos_puntos, str(modulo_destino), token))
+    conn.commit()
     conn.close()
-    return res if res else (0, 3, 0)
 
+# # --- CONFIGURACIÓN ADMIN ---
 def obtener_password_admin():
     return ADMIN_PASSWORD
 
