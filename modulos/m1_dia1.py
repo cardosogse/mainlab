@@ -1,6 +1,6 @@
 import streamlit as st
 import time
-from database import (
+import database as db (
     sincronizar_progreso_db, 
     otorgar_tiempo_extra_db, 
     descontar_vida_db
