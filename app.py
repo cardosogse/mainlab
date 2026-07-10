@@ -1,9 +1,13 @@
 import streamlit as st
-import pandas as pd
 import database as db
 from assets import cargar_estilos
 
-# 1. Carga de módulos con manejo de errores
+# 1. Inicialización
+st.set_page_config(page_title="MainLab", layout="wide")
+cargar_estilos()
+db.inicializar_db()
+
+# 2. Carga de módulos protegida
 try:
     from modulos.m1_dia1 import mostrar_dia1
     from modulos.m1_dia2 import mostrar_dia2
@@ -12,11 +16,6 @@ try:
 except ImportError as e:
     st.error(f"Error cargando módulos: {e}")
     st.stop()
-
-# 2. Configuración e inicialización
-st.set_page_config(page_title="MainLab", layout="wide")
-cargar_estilos()
-db.inicializar_db()
 
 # 3. Interfaz
 st.markdown("<h1 class='main-title'>MainLab</h1>", unsafe_allow_html=True)
@@ -29,15 +28,14 @@ if entrada:
         with t1:
             if st.button("Emitir Token"): st.code(db.generar_token(30))
         with t2:
-            st.dataframe(pd.DataFrame(db.listar_todos_los_tokens(), columns=["Token", "Uso", "Exp", "Puntos", "Vidas", "Mod"]))
+            st.dataframe(db.listar_todos_los_tokens())
         with t3:
-            if st.button("Ejecutar Auditoría"):
-                rep = db.verificar_salud_sistema()
-                for d in rep["detalles"]: st.write(f"- {d}")
+            if st.button("Auditoría"): st.write(db.verificar_salud_sistema())
     else:
         es_valido, _ = db.validar_token(entrada)
         if es_valido:
-            st.success("Acceso Autorizado")
+            # Aquí inyectamos el token en session_state para que los módulos lo usen
+            st.session_state['token'] = entrada
             estacion = st.radio("Día:", ["Día 1", "Día 2", "Día 3", "Día 4"], horizontal=True)
             if estacion == "Día 1": mostrar_dia1()
             elif estacion == "Día 2": mostrar_dia2()
