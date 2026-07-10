@@ -27,27 +27,15 @@ def inicializar_db():
     conn.commit()
     conn.close()
 
-# # --- MONITOR DE SALUD (DIAGNÓSTICO CRÍTICO) ---
+# # --- MONITOR DE SALUD ---
 def verificar_salud_sistema():
     reporte = {"status": "✅ Sistema Estable", "detalles": []}
-    # Chequeo Supabase
     try:
         supabase.table("tokens_acceso").select("token").limit(1).execute()
         reporte["detalles"].append("Conexión Supabase: Activa")
     except Exception as e:
         reporte["status"] = "❌ CRÍTICO"
         reporte["detalles"].append(f"Error Supabase: {str(e)[:40]}")
-    # Chequeo SQLite
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        c.execute("SELECT count(*) FROM tokens_acceso")
-        count = c.fetchone()[0]
-        conn.close()
-        reporte["detalles"].append(f"Integridad SQLite: {count} registros")
-    except:
-        reporte["status"] = "❌ CRÍTICO"
-        reporte["detalles"].append("Error acceso local")
     return reporte
 
 # # --- FUNCIONES DE GESTIÓN (BLINDADAS) ---
@@ -86,6 +74,20 @@ def descontar_vida_db(token):
     conn.close()
     try:
         supabase.table("tokens_acceso").update({"vidas": "vidas - 1"}).eq("token", token).execute()
+    except: pass
+
+def otorgar_tiempo_extra_db(token, dias_adicionales=7):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
+    res = c.fetchone()
+    if res:
+        nueva_fecha = datetime.datetime.strptime(res[0], "%Y-%m-%d").date() + timedelta(days=dias_adicionales)
+        c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (nueva_fecha.strftime("%Y-%m-%d"), token))
+        conn.commit()
+    conn.close()
+    try:
+        supabase.table("tokens_acceso").update({"fecha_expiracion": nueva_fecha.strftime("%Y-%m-%d")}).eq("token", token).execute()
     except: pass
 
 def validar_token(token):
