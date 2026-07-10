@@ -1,7 +1,7 @@
 import streamlit as st
 import random
 
-# DEFINICIÓN GLOBAL MAESTRA - Esto es lo que está buscando m1_dia3.py
+# DECLARACIÓN GLOBAL - Crucial para m1_dia3.py
 ELEMENTOS = {
     "Carbono (C)": {"fuerza": 2.55, "color": "#ffb142", "sym": "C"},
     "Hidrógeno (H)": {"fuerza": 2.20, "color": "#00e5ff", "sym": "H"},
