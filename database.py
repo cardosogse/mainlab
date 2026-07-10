@@ -1,66 +1,54 @@
 import sqlite3
 import datetime
 import streamlit as st
+from supabase import create_client
 
+# Configuración de Supabase
+SUPABASE_URL = st.secrets["supabase"]["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["supabase"]["SUPABASE_KEY"]
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 DB_NAME = "mainlab.db"
 
 def inicializar_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso 
-                 (token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
-                  score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS admin_config (key TEXT PRIMARY KEY, value TEXT)''')
-    c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', 'admin')")
+    c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso (token TEXT PRIMARY KEY, en_uso INTEGER, vidas INTEGER, score_puntos INTEGER, modulo_actual TEXT)''')
     conn.commit()
     conn.close()
 
 def verificar_salud_sistema():
-    reporte = {"status": "✅ Sistema Estable", "detalles": ["Integridad: OK"]}
+    reporte = {"status": "✅ Sistema Estable", "detalles": []}
+    # Verificación Supabase
+    try:
+        supabase.table("tokens_acceso").select("token").limit(1).execute()
+        reporte["detalles"].append("Conexión Supabase: OK")
+    except Exception as e:
+        reporte["status"] = "⚠️ Alerta"
+        reporte["detalles"].append(f"Supabase error: {str(e)[:20]}")
     return reporte
 
 def generar_token(dias):
     token = f"MAIN-{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
+    # Guardar en Supabase
+    supabase.table("tokens_acceso").insert({"token": token, "en_uso": 0, "vidas": 3}).execute()
     return token
 
 def validar_token(token):
-    return True, "Ok"
+    res = supabase.table("tokens_acceso").select("token").eq("token", token).execute()
+    return (len(res.data) > 0), ("Ok" if len(res.data) > 0 else "Inválido")
 
 def listar_todos_los_tokens():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT * FROM tokens_acceso")
-    res = c.fetchall()
-    conn.close()
-    return res
+    res = supabase.table("tokens_acceso").select("*").execute()
+    return res.data
 
 def obtener_password_admin():
-    return "admin"
+    return st.secrets["config"]["ADMIN_PASSWORD"]
 
-def actualizar_password_admin(p):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE admin_config SET value = ? WHERE key = 'password'", (p,))
-    conn.commit()
-    conn.close()
-
-# --- FUNCIONES QUE TUS MÓDULOS NECESITAN ---
 def sincronizar_progreso_db(token, modulo, score, vidas):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET modulo_actual = ?, score_puntos = ?, vidas = ? WHERE token = ?", (modulo, score, vidas, token))
-    conn.commit()
-    conn.close()
+    supabase.table("tokens_acceso").update({"modulo_actual": modulo, "score_puntos": score, "vidas": vidas}).eq("token", token).execute()
 
-def otorgar_tiempo_extra_db(token, segundos):
-    pass # Lógica de tiempo extra
+def otorgar_tiempo_extra_db(token, segundos): pass
+def descontar_vida_db(token): 
+    supabase.table("tokens_acceso").update({"vidas": 2}).eq("token", token).execute()
 
-def descontar_vida_db(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET vidas = vidas - 1 WHERE token = ?", (token,))
-    conn.commit()
-    conn.close()
-
-def limpiar_inconsistencias_db():
-    return "Saneado"
+def limpiar_inconsistencias_db(): return "Saneado"
