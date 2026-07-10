@@ -12,10 +12,8 @@ if 'auth' not in st.session_state: st.session_state['auth'] = None
 
 pass_maestra_actual = db.obtener_password_admin()
 
-# --- CABECERA GLOBAL (Logo perfectamente centrado en toda la pantalla) ---
 st.markdown("<h1 class='main-title'>Main<span class='main-title-suffix'>Lab</span></h1>", unsafe_allow_html=True)
 
-# Botón de desconexión elegante justo debajo alineado a la derecha
 if st.session_state['auth'] is not None:
     _, col_logout = st.columns([4, 1])
     with col_logout:
@@ -48,7 +46,6 @@ def hidratar_sesion_alumno(token, datos_db):
     if 'memo_tablero' not in st.session_state or not st.session_state['memo_tablero']:
         st.session_state['memo_tablero'] = mezclar_memorama()
 
-# Portal de Acceso
 if st.session_state['auth'] is None or st.session_state['auth'] is False:
     entrada = st.text_input("Ingresa Token o Clave Maestra:", type="password")
     if st.button("🚀 ACCEDER AL LABORATORIO", use_container_width=True):
@@ -66,7 +63,6 @@ if st.session_state['auth'] is None or st.session_state['auth'] is False:
             else:
                 st.error("Credencial inválida.")
 
-# --- CONSOLA DEL ADMINISTRADOR ---
 if st.session_state['auth'] == 'admin':
     st.subheader("🔑 Consola de Gestión")
     t_gen, t_mon = st.tabs(["🆕 Generar Tokens", "📊 Monitor de Alumnos"])
@@ -93,11 +89,10 @@ if st.session_state['auth'] == 'admin':
             with c_del:
                 if st.button("❌ Borrar Token Definitivamente", use_container_width=True):
                     db.eliminar_token(token_sel)
-                    st.toast(f"Token {token_sel} eliminado con éxito de Supabase.", icon="🗑️")
+                    st.toast(f"Token {token_sel} eliminado con éxito.", icon="🗑️")
                     st.rerun()
-        else: st.info("No hay tokens ni alumnos registrados en el sistema.")
+        else: st.info("No hay tokens registrados.")
 
-# --- INTERFAZ DEL ALUMNO ---
 elif st.session_state['auth'] == 'usuario':
     from modulos.modulo1 import mostrar_modulo1
     
@@ -127,6 +122,6 @@ elif st.session_state['auth'] == 'usuario':
     c_tm.metric("⏱️ Tiempo Total de Estudio", reloj_formateado)
     
     if st.session_state['vidas'] <= 0:
-        st.error("🚨 **SISTEMA BLOQUEADO:** Has agotado tus vidas clínicas. Contacta al docente del laboratorio.")
+        st.error("🚨 **SISTEMA BLOQUEADO:** Has agotado tus vidas clínicas.")
     else:
         mostrar_modulo1()
