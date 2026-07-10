@@ -15,6 +15,7 @@ except Exception as e:
     st.error(f"Error: {e}")
     st.stop()
 
+# --- FUNCIONES DE BASE DE DATOS (NO MODIFICAR NOMBRES) ---
 def inicializar_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -24,7 +25,6 @@ def inicializar_db():
     conn.commit()
     conn.close()
 
-# # --- TODAS LAS FUNCIONES NECESARIAS ---
 def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -76,20 +76,27 @@ def listar_todos_los_tokens():
     conn.close()
     return filas
 
-def sincronizar_progreso_db(token, nuevos_puntos, modulo_destino):
+def sincronizar_progreso_db(token, puntos, mod):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (nuevos_puntos, str(modulo_destino), token))
+    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (puntos, str(mod), token))
     conn.commit()
     conn.close()
 
-def otorgar_tiempo_extra_db(token, dias_adicionales=7):
+def descontar_vida_db(token):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("UPDATE tokens_acceso SET vidas = max(0, vidas - 1) WHERE token = ?", (token,))
+    conn.commit()
+    conn.close()
+
+def otorgar_tiempo_extra_db(token, dias=7):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("SELECT fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
     res = c.fetchone()
     if res:
-        nueva_fecha = datetime.datetime.strptime(res[0], "%Y-%m-%d").date() + timedelta(days=dias_adicionales)
+        nueva_fecha = datetime.datetime.strptime(res[0], "%Y-%m-%d").date() + timedelta(days=dias)
         c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (nueva_fecha.strftime("%Y-%m-%d"), token))
         conn.commit()
     conn.close()
