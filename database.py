@@ -6,6 +6,7 @@ import string
 import streamlit as st
 from supabase import create_client
 
+# Configuración con auto-limpieza de espacios en blanco invisibles
 SUPABASE_URL = st.secrets["supabase"]["SUPABASE_URL"].strip()
 SUPABASE_KEY = st.secrets["supabase"]["SUPABASE_KEY"].strip()
 DB_NAME = st.secrets["config"]["DB_NAME"].strip()
@@ -16,10 +17,11 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 def inicializar_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+    # MODIFICADO: tiempo_estudio_min en lugar de tiempo_estudio_seg
     c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso (
         token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
         score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT,
-        intentos_quiz INTEGER, tiempo_estudio_seg INTEGER, errores_quiz INTEGER)''')
+        intentos_quiz INTEGER, tiempo_estudio_min INTEGER, errores_quiz INTEGER)''')
     c.execute('''CREATE TABLE IF NOT EXISTS admin_config (key TEXT PRIMARY KEY, value TEXT)''')
     c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', ?)", (ADMIN_PASSWORD,))
     conn.commit()
@@ -41,7 +43,7 @@ def generar_token(dias):
         supabase.table("tokens_acceso").insert({
             "token": token, "en_uso": 0, "fecha_expiracion": fecha_exp,
             "score_puntos": 0, "vidas": 3, "modulo_actual": "1",
-            "intentos_quiz": 0, "tiempo_estudio_seg": 0, "errores_quizz": 0  
+            "intentos_quiz": 0, "tiempo_estudio_min": 0, "errores_quizz": 0  
         }).execute()
     except: pass
     return token
@@ -49,10 +51,11 @@ def generar_token(dias):
 def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT score_puntos, vidas, modulo_actual, errores_quiz, tiempo_estudio_seg, fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
+    # MODIFICADO: Extraemos tiempo_estudio_min
+    c.execute("SELECT score_puntos, vidas, modulo_actual, errores_quiz, tiempo_estudio_min, fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
     res = c.fetchone()
     if res:
-        score, vidas, modulo, errores, tiempo, fecha_exp = res
+        score, vidas, modulo, errores, tiempo_min, fecha_exp = res
         hoy = datetime.date.today().strftime("%Y-%m-%d")
         if hoy > fecha_exp:
             conn.close()
@@ -66,7 +69,7 @@ def validar_token(token):
         try: supabase.table("tokens_acceso").update({"en_uso": 1}).eq("token", token).execute()
         except: pass
         
-        return True, {"puntos": score, "vidas": vidas, "modulo": modulo, "errores": errores, "tiempo": tiempo}
+        return True, {"puntos": score, "vidas": vidas, "modulo": modulo, "errores": errores, "tiempo": tiempo_min}
     conn.close()
     return False, "invalid"
 
@@ -79,22 +82,23 @@ def eliminar_token(token):
     try: supabase.table("tokens_acceso").delete().eq("token", token).execute()
     except: pass
 
-def sincronizar_progreso_db(token, puntos, mod, vidas, tiempo_seg):
+def sincronizar_progreso_db(token, puntos, mod, vidas, tiempo_min):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ?, vidas = ?, tiempo_estudio_seg = ? WHERE token = ?", (puntos, str(mod), vidas, tiempo_seg, token))
+    # MODIFICADO: Actualización orientada a minutos enteros
+    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ?, vidas = ?, tiempo_estudio_min = ? WHERE token = ?", (puntos, str(mod), vidas, int(tiempo_min), token))
     conn.commit()
     conn.close()
     try:
         supabase.table("tokens_acceso").update({
-            "score_puntos": int(puntos), "modulo_actual": str(mod), "vidas": int(vidas), "tiempo_estudio_seg": int(tiempo_seg)
+            "score_puntos": int(puntos), "modulo_actual": str(mod), "vidas": int(vidas), "tiempo_estudio_min": int(tiempo_min)
         }).eq("token", token).execute()
     except: pass
 
-def registrar_intento_quiz(token, nuevos_errores, nuevas_vidas, tiempo_seg):
+def registrar_intento_quiz(token, nuevos_errores, nuevas_vidas, tiempo_min):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET intentos_quiz = intentos_quiz + 1, errores_quiz = errores_quiz + ?, vidas = ?, tiempo_estudio_seg = ? WHERE token = ?", (nuevos_errores, nuevas_vidas, tiempo_seg, token))
+    c.execute("UPDATE tokens_acceso SET intentos_quiz = intentos_quiz + 1, errores_quiz = errores_quiz + ?, vidas = ?, tiempo_estudio_min = ? WHERE token = ?", (nuevos_errores, nuevas_vidas, int(tiempo_min), token))
     c.execute("SELECT intentos_quiz, errores_quiz FROM tokens_acceso WHERE token = ?", (token,))
     res = c.fetchone()
     conn.commit()
@@ -103,7 +107,7 @@ def registrar_intento_quiz(token, nuevos_errores, nuevas_vidas, tiempo_seg):
         intentos_totales, errores_totales = res
         try:
             supabase.table("tokens_acceso").update({
-                "vidas": int(nuevas_vidas), "errores_quizz": int(errores_totales), "intentos_quiz": int(intentos_totales), "tiempo_estudio_seg": int(tiempo_seg)
+                "vidas": int(nuevas_vidas), "errores_quizz": int(errores_totales), "intentos_quiz": int(intentos_totales), "tiempo_estudio_min": int(tiempo_min)
             }).eq("token", token).execute()
         except: pass
 
@@ -132,10 +136,11 @@ def obtener_password_admin():
 def listar_todos_los_tokens():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, tiempo_estudio_seg, errores_quiz FROM tokens_acceso")
+    # MODIFICADO: Mapeo de columnas apuntando a minutos
+    c.execute("SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, tiempo_estudio_min, errores_quiz FROM tokens_acceso")
     filas = c.fetchall()
     conn.close()
-    claves = ["Token", "Activo", "Expiracion", "Puntos", "Vidas", "Modulo", "Intentos Quiz", "Tiempo Estudio (s)", "Errores Quiz"]
+    claves = ["Token", "Activo", "Expiracion", "Puntos", "Vidas", "Modulo", "Intentos Quiz", "Tiempo Estudio (min)", "Errores Quiz"]
     return [dict(zip(claves, f)) for f in filas]
 
 def forzar_liberacion_sesion(token):
