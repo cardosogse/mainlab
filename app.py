@@ -2,10 +2,6 @@ import streamlit as st
 import pandas as pd
 import database as db
 from assets import cargar_estilos
-from modulos.m1_dia1 import mostrar_dia1
-from modulos.m1_dia2 import mostrar_dia2
-from modulos.m1_dia3 import mostrar_dia3
-from modulos.m1_dia4 import mostrar_dia4
 
 # --- CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="MainLab", layout="wide", page_icon="🧬")
@@ -47,23 +43,31 @@ def panel_administrador():
             rep = db.verificar_salud_sistema()
             st.success(rep["status"])
             for d in rep["detalles"]: st.write(f"- {d}")
-            if st.button("🛠️ Reparar"): 
-                st.success(db.limpiar_inconsistencias_db()); st.rerun()
+            if "Alerta" in rep["status"]:
+                if st.button("🛠️ Reparar"): 
+                    st.success(db.limpiar_inconsistencias_db())
+                    st.rerun()
 
-# --- LÓGICA DE ACCESO ---
+# --- LÓGICA DE ACCESO CON IMPORTACIÓN DIFERIDA ---
 entrada = st.text_input("Ingresa Token o Clave Maestra:", type="password")
 
-if st.button("🚀 ACCEDER AL LABORATORIO"):
+if entrada:
     if entrada == pass_maestra_actual:
-        panel_administrador()
+        panel_administrador() 
     else:
         es_valido, msg = db.validar_token(entrada)
         if es_valido:
             st.success("Acceso concedido.")
+            # IMPORTACIÓN LOCAL: Los módulos solo cargan si el token es válido
+            from modulos.m1_dia1 import mostrar_dia1
+            from modulos.m1_dia2 import mostrar_dia2
+            from modulos.m1_dia3 import mostrar_dia3
+            from modulos.m1_dia4 import mostrar_dia4
+            
             estacion = st.radio("Cronograma:", ["Día 1", "Día 2", "Día 3", "Día 4"], horizontal=True)
-            if estacion == "Día 1": mostrar_dia1()
-            elif estacion == "Día 2": mostrar_dia2()
-            elif estacion == "Día 3": mostrar_dia3()
+            if "Día 1" in estacion: mostrar_dia1()
+            elif "Día 2" in estacion: mostrar_dia2()
+            elif "Día 3" in estacion: mostrar_dia3()
             else: mostrar_dia4()
         else:
             st.error("Credencial inválida.")
