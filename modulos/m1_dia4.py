@@ -9,7 +9,7 @@ def mostrar_dia4():
     grupo = st.selectbox("Grupo Funcional a Inspeccionar:", ["Carbonilo (C=O)", "Metilo (CH3)", "Hidroxilo (-OH)", "Tiol / Disulfuro (-SH)"])
     if "Carbonilo" in grupo: 
         st.warning("**Carbonilo:** Centro neurálgico del metabolismo de glúcidos.")
-    elif "Metilo" in grupo:
+    elif "Metilo" in group if 'group' in locals() else "Metilo" in grupo:
         st.warning("**Metilo:** Crítico en empaquetamiento estructural y marcas epigenéticas.")
     elif "Tiol" in grupo:
         st.warning("**Tiol/Disulfuro:** Enlaces de cisteína determinantes en la queratina de pezuñas y cuernos.")
@@ -27,7 +27,8 @@ def mostrar_dia4():
                 st.session_state["advertencia_ph"] = True
             else:
                 st.session_state["vidas"] = max(0, st.session_state["vidas"] - 1)
-                db.sincronizar_progreso_db(token, st.session_state["puntos_acumulados"], "1", st.session_state["vidas"], st.session_state['tiempo_estudio_seg'])
+                # CORREGIDO: Se envía 'tiempo_estudio_min'
+                db.sincronizar_progreso_db(token, st.session_state["puntos_acumulados"], "1", st.session_state["vidas"], st.session_state['tiempo_estudio_min'])
                 st.markdown("<div class='card-error'>🚨 <b>CHOQUE DE ACIDOSIS:</b> pH cayó a 2.0. Proteínas desnaturalizadas. <b>-1 Vida.</b></div>", unsafe_allow_html=True)
                 st.session_state["advertencia_ph"] = False
                 st.rerun()
@@ -52,19 +53,20 @@ def mostrar_dia4():
         elif errores == 0:
             st.balloons()
             st.session_state["puntos_acumulados"] += 200
-            db.registrar_intento_quiz(token, nuevos_errores=0, nuevas_vidas=st.session_state["vidas"], tiempo_seg=st.session_state['tiempo_estudio_seg'])
-            db.sincronizar_progreso_db(token, st.session_state["puntos_acumulados"], "2", st.session_state["vidas"], st.session_state['tiempo_estudio_seg'])
+            # CORREGIDO: Cambio global a 'tiempo_estudio_min' en llamadas a base de datos
+            db.registrar_intento_quiz(token, nuevos_errores=0, nuevas_vidas=st.session_state["vidas"], tiempo_min=st.session_state['tiempo_estudio_min'])
+            db.sincronizar_progreso_db(token, st.session_state["puntos_acumulados"], "2", st.session_state["vidas"], st.session_state['tiempo_estudio_min'])
             st.success("🏆 ¡Felicidades! Récord perfecto.")
             st.session_state["errores_quiz"] = 0
             st.rerun()
         else:
             st.session_state["errores_quiz"] += 1
             if st.session_state["errores_quiz"] == 1:
-                db.registrar_intento_quiz(token, nuevos_errores=errores, nuevas_vidas=st.session_state["vidas"], tiempo_seg=st.session_state['tiempo_estudio_seg'])
+                db.registrar_intento_quiz(token, nuevos_errores=errores, nuevas_vidas=st.session_state["vidas"], tiempo_min=st.session_state['tiempo_estudio_min'])
                 st.markdown(f"<div class='card-hint'>💡 Tienes {errores} error(es). Recuerda que la variación en un único centro quiral define un epímero. Corrige tus respuestas.</div>", unsafe_allow_html=True)
             else:
                 st.session_state["vidas"] = max(0, st.session_state["vidas"] - 1)
-                db.registrar_intento_quiz(token, nuevos_errores=errores, nuevas_vidas=st.session_state["vidas"], tiempo_seg=st.session_state['tiempo_estudio_seg'])
+                db.registrar_intento_quiz(token, nuevos_errores=errores, nuevas_vidas=st.session_state["vidas"], tiempo_min=st.session_state['tiempo_estudio_min'])
                 st.error("❌ Fallo Clínico Severo. Se ha descontado 1 Vida.")
                 st.session_state["errores_quiz"] = 0
                 st.rerun()
