@@ -1,10 +1,7 @@
 import streamlit as st
 import time
-from data base import (
-    sincronizar_progreso_db, 
-    otorgar_tiempo_extra_db, 
-    descontar_vida_db
-)
+# Se importa el módulo completo para evitar errores de ruta y circulares
+import database as db 
 from assets import obtener_svg_atomo, mezclar_memorama
 
 def mostrar_dia1():
@@ -72,18 +69,17 @@ def mostrar_dia1():
                     if st.session_state["racha_consecutiva"] >= 2 and not st.session_state["licencia_extendida"]:
                         puntos_ganados += 300
                         st.session_state["licencia_extendida"] = True
-                        # Corregido: usando el nombre correcto del parámetro de la base de datos
-                        otorgar_tiempo_extra_db(st.session_state["token_actual"], dias_adicionales=7)
+                        # Uso correcto de la función a través del alias 'db'
+                        db.otorgar_tiempo_extra_db(st.session_state["token_actual"], dias_adicionales=7)
                         st.toast("🚀 ¡RACHA CUÁNTICA! +7 días de licencia.", icon="🎁")
                     st.session_state["puntos_acumulados"] += puntos_ganados
-                    sincronizar_progreso_db(st.session_state["token_actual"], st.session_state["puntos_acumulados"], "1")
+                    db.sincronizar_progreso_db(st.session_state["token_actual"], st.session_state["puntos_acumulados"], "1")
             st.toast("⚡ ¡Afinidad molecular correcta!", icon="✅")
         else:
             st.session_state["racha_consecutiva"] = 0
             st.toast("❌ No interactúan.", icon="⚠️")
         st.session_state["memo_reveladas"] = []
 
-    # ... (El resto de tu lógica de visualización del memorama permanece igual)
     cols_memo = st.columns(5)
     for i in range(10):
         col_idx = i % 5
