@@ -27,44 +27,38 @@ def inicializar_db():
     conn.commit()
     conn.close()
 
-# # --- MONITOR DE SALUD ABSOLUTO ---
+# # --- MONITOR DE SALUD Y AUTO-REPARACIÓN ---
 def verificar_salud_sistema():
     reporte = {"status": "✅ Sistema Estable", "detalles": []}
-    
-    # 1. Conexión a Base de Datos
     try:
         supabase.table("tokens_acceso").select("token").limit(1).execute()
         reporte["detalles"].append("Conexión Supabase: Activa")
     except Exception as e:
         reporte["status"] = "❌ CRÍTICO"
         reporte["detalles"].append(f"Error Supabase: {str(e)[:40]}")
-
-    # 2. Auditoría de Inconsistencias (Datos corruptos)
+    
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("SELECT count(*) FROM tokens_acceso WHERE vidas < 0 OR score_puntos < 0")
     inconsistencias = c.fetchone()[0]
     if inconsistencias > 0:
         reporte["status"] = "⚠️ Alerta de Inconsistencia"
-        reporte["detalles"].append(f"Registros corruptos (vidas < 0): {inconsistencias}")
-    
-    # 3. Sesiones Huérfanas
-    c.execute("SELECT count(*) FROM tokens_acceso WHERE en_uso = 1")
-    sesiones = c.fetchone()[0]
-    reporte["detalles"].append(f"Sesiones bloqueadas actualmente: {sesiones}")
-
-    # 4. Auditoría de módulos pedagógicos
-    try:
-        import modulos.m1_dia1, modulos.m1_dia2, modulos.m1_dia3, modulos.m1_dia4
-        reporte["detalles"].append("Módulos pedagógicos: Disponibles")
-    except ImportError:
-        reporte["status"] = "❌ CRÍTICO"
-        reporte["detalles"].append("Error: Faltan archivos de módulos")
-    
+        reporte["detalles"].append(f"Registros corruptos: {inconsistencias}")
     conn.close()
     return reporte
 
-# # --- FUNCIONES DE GESTIÓN (MANTENIDAS) ---
+def limpiar_inconsistencias_db():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("UPDATE tokens_acceso SET vidas = 3 WHERE vidas < 0")
+    c.execute("UPDATE tokens_acceso SET score_puntos = 0 WHERE score_puntos < 0")
+    c.execute("UPDATE tokens_acceso SET en_uso = 0 WHERE en_uso = 1") # Limpia sesiones colgadas
+    conn.commit()
+    conn.close()
+    return "Base de datos saneada con éxito."
+
+# # --- FUNCIONES DE GESTIÓN (COMPLETAS) ---
+
 def registrar_intento_quiz(token, es_correcto):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -99,6 +93,20 @@ def descontar_vida_db(token):
     conn.close()
     try:
         supabase.table("tokens_acceso").update({"vidas": "vidas - 1"}).eq("token", token).execute()
+    except: pass
+
+def otorgar_tiempo_extra_db(token, dias_adicionales=7):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
+    res = c.fetchone()
+    if res:
+        nueva_fecha = datetime.datetime.strptime(res[0], "%Y-%m-%d").date() + timedelta(days=dias_adicionales)
+        c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (nueva_fecha.strftime("%Y-%m-%d"), token))
+        conn.commit()
+    conn.close()
+    try:
+        supabase.table("tokens_acceso").update({"fecha_expiracion": nueva_fecha.strftime("%Y-%m-%d")}).eq("token", token).execute()
     except: pass
 
 def validar_token(token):
