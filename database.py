@@ -6,7 +6,6 @@ import string
 import streamlit as st
 from supabase import create_client
 
-# Configuración con auto-limpieza de espacios en blanco invisibles
 SUPABASE_URL = st.secrets["supabase"]["SUPABASE_URL"].strip()
 SUPABASE_KEY = st.secrets["supabase"]["SUPABASE_KEY"].strip()
 DB_NAME = st.secrets["config"]["DB_NAME"].strip()
@@ -50,7 +49,6 @@ def generar_token(dias):
 def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    # CORREGIDO: Extraemos explícitamente 'tiempo_estudio_seg' en el SELECT local
     c.execute("SELECT score_puntos, vidas, modulo_actual, errores_quiz, tiempo_estudio_seg, fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
     res = c.fetchone()
     if res:
@@ -68,7 +66,6 @@ def validar_token(token):
         try: supabase.table("tokens_acceso").update({"en_uso": 1}).eq("token", token).execute()
         except: pass
         
-        # CORREGIDO: Empacamos "tiempo" en el payload de retorno para app.py
         return True, {"puntos": score, "vidas": vidas, "modulo": modulo, "errores": errores, "tiempo": tiempo}
     conn.close()
     return False, "invalid"
