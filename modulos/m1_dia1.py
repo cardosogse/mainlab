@@ -1,6 +1,6 @@
 import streamlit as st
 import time
-import database as db  # Importación unificada para evitar bloqueos
+import database as db
 from assets import obtener_svg_atomo
 
 def mostrar_dia1():
@@ -53,7 +53,6 @@ def mostrar_dia1():
     st.markdown("<div class='lab-panel'>", unsafe_allow_html=True)
     st.markdown("### 🧠 Desafío de Consolidación: Memorama Atómico")
     
-    # CONTROL DE REVELACIÓN COMPLETO: Permite ver ambas cartas antes de evaluar
     if len(st.session_state["memo_reveladas"]) == 2:
         st.warning("🧩 Tienes dos tarjetas volteadas en el laboratorio. Revisa sus contenidos y presiona el botón para evaluar afinidad.")
         
@@ -76,7 +75,6 @@ def mostrar_dia1():
                         
                     st.session_state["puntos_acumulados"] += puntos_ganados
                     
-                    # Sincronización maestra absoluta con Supabase
                     db.sincronizar_progreso_db(
                         st.session_state["token_actual"], 
                         st.session_state["puntos_acumulados"], 
@@ -92,7 +90,6 @@ def mostrar_dia1():
             st.session_state["memo_reveladas"] = []
             st.rerun()
 
-    # Renderizado del tablero usando Grid proporcional
     cols_memo = st.columns(5)
     for i in range(10):
         col_idx = i % 5
@@ -104,7 +101,6 @@ def mostrar_dia1():
             elif i in st.session_state["memo_reveladas"]:
                 st.button(f"👀 {val_tarjeta}", key=f"btn_rev_{i}", disabled=True, use_container_width=True)
             else:
-                # Bloquea clics adicionales si ya hay dos cartas mostrándose
                 bloqueo_clic = len(st.session_state["memo_reveladas"]) >= 2
                 if st.button("⚛️", key=f"btn_act_{i}", use_container_width=True, disabled=bloqueo_clic):
                     st.session_state["memo_reveladas"].append(i)
