@@ -1,56 +1,92 @@
-import sqlite3
-import datetime
-from datetime import timedelta
 import streamlit as st
-from supabase import create_client
+import pandas as pd
+import database as db
+from assets import cargar_estilos
 
-# Configuración
-SUPABASE_URL = st.secrets["supabase"]["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["supabase"]["SUPABASE_KEY"]
-DB_NAME = st.secrets["config"]["DB_NAME"]
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# --- CONFIGURACIÓN E INICIALIZACIÓN ---
+st.set_page_config(page_title="MainLab", layout="wide", page_icon="🧬")
+cargar_estilos()
+db.inicializar_db()
 
-def inicializar_db():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso (
-        token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
-        score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT,
-        intentos_quiz INTEGER, tiempo_estudio_seg INTEGER, errores_quiz INTEGER)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS admin_config (key TEXT PRIMARY KEY, value TEXT)''')
-    c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', ?)", (st.secrets["config"]["ADMIN_PASSWORD"],))
-    conn.commit()
-    conn.close()
+# Inicialización de estado si no existe
+if 'auth' not in st.session_state: st.session_state['auth'] = None
+if 'token_actual' not in st.session_state: st.session_state['token_actual'] = None
+if 'puntos_acumulados' not in st.session_state: st.session_state['puntos_acumulados'] = 0
+if 'vidas' not in st.session_state: st.session_state['vidas'] = 3
+if 'errores_quiz' not in st.session_state: st.session_state['errores_quiz'] = 0
+if 'advertencia_ph' not in st.session_state: st.session_state['advertencia_ph'] = False
+if 'memo_reveladas' not in st.session_state: st.session_state['memo_reveladas'] = []
+if 'memo_resueltas' not in st.session_state: st.session_state['memo_resueltas'] = []
+if 'memo_tablero' not in st.session_state: st.session_state['memo_tablero'] = [] # Debes inicializar esto con los pares
+if 'racha_consecutiva' not in st.session_state: st.session_state['racha_consecutiva'] = 0
+if 'licencia_extendida' not in st.session_state: st.session_state['licencia_extendida'] = False
 
-def generar_token(dias):
-    token = f"MAIN-{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
-    supabase.table("tokens_acceso").insert({"token": token, "en_uso": 0, "vidas": 3}).execute()
-    return token
+pass_maestra_actual = db.obtener_password_admin()
 
-def validar_token(token):
-    res = supabase.table("tokens_acceso").select("token").eq("token", token).execute()
-    return (len(res.data) > 0), "Ok"
+st.markdown("<h1 class='main-title'>Main<span class='main-title-suffix'>Lab</span></h1>", unsafe_allow_html=True)
 
-def sincronizar_progreso_db(token, mod, score, vidas):
-    supabase.table("tokens_acceso").update({"modulo_actual": str(mod), "score_puntos": score, "vidas": vidas}).eq("token", token).execute()
+# --- PANEL ADMINISTRADOR ---
+def panel_administrador():
+    st.subheader("🔑 Consola de Gestión")
+    tab_gen, tab_mon, tab_seg, tab_diag = st.tabs(["🆕 Tokens", "📊 Monitor", "⚙️ Seguridad", "🩺 Diagnóstico"])
+    
+    with tab_gen:
+        vigencia = st.number_input("Días de vigencia:", min_value=1, value=30)
+        if st.button("Emitir Token"):
+            st.code(f"TOKEN: {db.generar_token(vigencia)}", language="text")
+            
+    with tab_mon:
+        datos = db.listar_todos_los_tokens()
+        if datos:
+            st.dataframe(pd.DataFrame(datos))
+            token_sel = st.selectbox("Token:", [d['token'] for d in datos])
+            if st.button("🔓 Forzar Cierre"): 
+                db.forzar_liberacion_sesion(token_sel)
+                st.rerun()
+        else: st.info("Base vacía.")
+            
+    with tab_seg:
+        nueva_pass = st.text_input("Nueva Clave Maestra:", type="password")
+        if st.button("Actualizar"): 
+            db.actualizar_password_admin(nueva_pass)
+            st.success("Guardado.")
+            
+    with tab_diag:
+        if st.button("Ejecutar Auditoría"):
+            rep = db.verificar_salud_sistema()
+            st.success(rep["status"])
+            for d in rep["detalles"]: st.write(f"- {d}")
+            if st.button("🛠️ Reparar"): 
+                st.success(db.limpiar_inconsistencias_db()); st.rerun()
 
-def descontar_vida_db(token):
-    supabase.table("tokens_acceso").update({"vidas": "vidas - 1"}).eq("token", token).execute()
+# --- LÓGICA DE ACCESO CON IMPORTACIÓN DIFERIDA ---
+entrada = st.text_input("Ingresa Token o Clave Maestra:", type="password")
 
-def obtener_password_admin():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT value FROM admin_config WHERE key = 'password'")
-    res = c.fetchone()
-    conn.close()
-    return res[0] if res else "admin"
+if st.button("🚀 ACCEDER AL LABORATORIO"):
+    if entrada == pass_maestra_actual:
+        st.session_state['auth'] = 'admin'
+        st.rerun()
+    else:
+        es_valido, msg = db.validar_token(entrada)
+        if es_valido:
+            st.session_state['auth'] = 'usuario'
+            st.session_state['token_actual'] = entrada
+            st.rerun()
+        else:
+            st.error("Credencial inválida.")
 
-def listar_todos_los_tokens():
-    res = supabase.table("tokens_acceso").select("*").execute()
-    return res.data
-
-def eliminar_token(token):
-    supabase.table("tokens_acceso").delete().eq("token", token).execute()
-
-def liberar_token(token):
-    supabase.table("tokens_acceso").update({"en_uso": 0}).eq("token", token).execute()
+# --- NAVEGACIÓN ---
+if st.session_state['auth'] == 'admin':
+    panel_administrador()
+elif st.session_state['auth'] == 'usuario':
+    # Importación solo cuando el usuario está autenticado
+    from modulos.m1_dia1 import mostrar_dia1
+    from modulos.m1_dia2 import mostrar_dia2
+    from modulos.m1_dia3 import mostrar_dia3
+    from modulos.m1_dia4 import mostrar_dia4
+    
+    estacion = st.radio("Cronograma:", ["Día 1", "Día 2", "Día 3", "Día 4"], horizontal=True)
+    if "Día 1" in estacion: mostrar_dia1()
+    elif "Día 2" in estacion: mostrar_dia2()
+    elif "Día 3" in estacion: mostrar_dia3()
+    else: mostrar_dia4()
