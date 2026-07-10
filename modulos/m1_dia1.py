@@ -5,23 +5,48 @@ from assets import obtener_svg_atomo
 
 def mostrar_dia1():
     st.subheader("Día 1: Niveles de Organización y Separación de Fases")
+    st.write("La bioquímica es una ciencia aplicada; los procesos generados in vitro constituyen las bases del diagnóstico clínico.")
     
     st.markdown("<div class='lab-panel'>", unsafe_allow_html=True)
     st.markdown("### 🔬 Simulador de Centrifugación Macromolecular")
-    muestra = st.selectbox("Selecciona la Muestra:", ["Plasma Sanguíneo", "Sangre Entera"])
-    if st.button("Ejecutar Fuerzas G"):
+    muestra = st.selectbox("Selecciona la Muestra de Fluido:", ["Plasma Sanguíneo", "Sangre Entera (Muestra anticoagulada)"])
+    
+    if st.button("Ejecutar Fuerzas G (Centrifugar)"):
         progreso = st.progress(0)
         for i in range(100):
             time.sleep(0.005)
             progreso.progress(i + 1)
-        if "Plasma" in muestra: st.success("Mezcla Homogénea (Coloidal)")
-        else: st.warning("Mezcla Heterogénea en Suspensión")
+            
+        if muestra == "Plasma Sanguíneo":
+            st.success("🔬 Diagnóstico: Mezcla Homogénea (Solución Coloidal)")
+            st.info("El plasma mantiene una fase uniforme debido a que las proteínas plasmáticas permanecen dispersas.")
+        else:
+            st.warning("🩸 Diagnóstico: Mezcla Heterogénea en Suspensión")
+            st.info("La fuerza centrífuga precipita los elementos celulares densos al fondo de la muestra.")
+    st.markdown("</div>", unsafe_allow_html=True)
+    
+    st.markdown("<div class='lab-panel'>", unsafe_allow_html=True)
+    st.markdown("### 🗛️ Deslizador de Teorías Cuánticas")
+    modelo = st.select_slider(
+        "Navegación Cronológica:",
+        options=["Dalton (1810)", "Thomson (1897)", "Rutherford (1911)", "Bohr (1913)", "Schrödinger (1926)"]
+    )
+    
+    col_txt, col_svg = st.columns([3, 1])
+    with col_txt:
+        if "Dalton" in modelo: st.info("Dalton (1810): Esfera sólida sin cargas.")
+        elif "Thomson" in modelo: st.info("Thomson (1897): Descubre el electrón.")
+        elif "Rutherford" in modelo: st.info("Rutherford (1911): Núcleo positivo central diminuto.")
+        elif "Bohr" in modelo: st.info("Bohr (1913): Órbitas cuantizadas de energía fija.")
+        else: st.info("Schrödinger (1926): Orbitales de densidad probabilística 3D.")
+        
+    with col_svg:
+        st.components.v1.html(f"<div style='display:flex; justify-content:center; align-items:center; width:100%; height:110px; background-color:rgba(255,255,255,0.02); border-radius:13px;'>{obtener_svg_atomo(modelo)}</div>", height=120, scrolling=False)
     st.markdown("</div>", unsafe_allow_html=True)
     
     st.markdown("<div class='lab-panel'>", unsafe_allow_html=True)
     st.markdown("### 🧠 Desafío de Consolidación: Memorama Atómico")
     
-    # Lógica de juego completamente saneada
     if len(st.session_state["memo_reveladas"]) == 2:
         idx1, idx2 = st.session_state["memo_reveladas"]
         _, id_par1 = st.session_state["memo_tablero"][idx1]
@@ -35,13 +60,11 @@ def mostrar_dia1():
                 if st.session_state["racha_consecutiva"] >= 2 and not st.session_state["licencia_extendida"]:
                     puntos_ganados += 300
                     st.session_state["licencia_extendida"] = True
-                    # Llamada segura a la DB
                     db.otorgar_tiempo_extra_db(st.session_state["token_actual"], 7)
                     st.toast("🚀 ¡RACHA CUÁNTICA! +7 días de licencia.", icon="🎁")
-                
                 st.session_state["puntos_acumulados"] += puntos_ganados
-                db.sincronizar_progreso_db(st.session_state["token_actual"], st.session_state["puntos_acumulados"], "1")
-            st.toast("⚡ ¡Afinidad correcta!", icon="✅")
+                db.sincronizar_progreso_db(st.session_state["token_actual"], st.session_state["puntos_acumulados"], "1", st.session_state["vidas"])
+            st.toast("⚡ ¡Afinidad molecular correcta!", icon="✅")
         else:
             st.session_state["racha_consecutiva"] = 0
             st.toast("❌ No interactúan.", icon="⚠️")
@@ -59,3 +82,4 @@ def mostrar_dia1():
                 if st.button("⚛️", key=f"btn_act_{i}", use_container_width=True):
                     st.session_state["memo_reveladas"].append(i)
                     st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
