@@ -15,7 +15,6 @@ except Exception as e:
     st.error(f"Error de configuración: {e}")
     st.stop()
 
-# # --- GESTIÓN DE ESTRUCTURA DE DATOS ---
 def inicializar_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -27,7 +26,6 @@ def inicializar_db():
     conn.commit()
     conn.close()
 
-# # --- VALIDACIÓN Y SESIÓN ---
 def validar_token(token):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -36,7 +34,6 @@ def validar_token(token):
     if not res:
         conn.close()
         return False, "Token no registrado."
-    
     c.execute("UPDATE tokens_acceso SET en_uso = 1 WHERE token = ?", (token,))
     conn.commit()
     conn.close()
@@ -45,15 +42,6 @@ def validar_token(token):
     except: pass
     return True, "Token Válido"
 
-def obtener_datos_usuario(token):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT score_puntos, vidas, modulo_actual FROM tokens_acceso WHERE token = ?", (token,))
-    res = c.fetchone()
-    conn.close()
-    return res if res else (0, 3, 0)
-
-# # --- ADMINISTRACIÓN DE LICENCIAS ---
 def generar_token(dias):
     timestamp = datetime.datetime.now().strftime("%H%M%S")
     token = f"MAIN-{datetime.date.today().strftime('%y%m%d')}-{timestamp}"
@@ -96,38 +84,19 @@ def listar_todos_los_tokens():
     conn.close()
     return filas
 
-def obtener_password_admin():
-    return ADMIN_PASSWORD
+def obtener_datos_usuario(token):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT score_puntos, vidas, modulo_actual FROM tokens_acceso WHERE token = ?", (token,))
+    res = c.fetchone()
+    conn.close()
+    return res if res else (0, 3, 0)
+
+def obtener_password_admin(): return ADMIN_PASSWORD
 
 def actualizar_password_admin(nueva_pass):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("UPDATE admin_config SET value = ? WHERE key = 'password'", (nueva_pass,))
     conn.commit()
-    conn.close()
-
-# # --- SINCRONIZACIÓN DE PROGRESO ---
-def sincronizar_progreso_db(token, nuevos_puntos, modulo_destino):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ? WHERE token = ?", (nuevos_puntos, str(modulo_destino), token))
-    conn.commit()
-    conn.close()
-    try:
-        supabase.table("tokens_acceso").update({"score_puntos": nuevos_puntos, "modulo_actual": str(modulo_destino)}).eq("token", token).execute()
-    except: pass
-
-def otorgar_tiempo_extra_db(token, dias_adicionales=7):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
-    res = c.fetchone()
-    if res:
-        nueva_fecha = datetime.datetime.strptime(res[0], "%Y-%m-%d").date() + timedelta(days=dias_adicionales)
-        fecha_str = nueva_fecha.strftime("%Y-%m-%d")
-        c.execute("UPDATE tokens_acceso SET fecha_expiracion = ? WHERE token = ?", (fecha_str, token))
-        conn.commit()
-        try:
-            supabase.table("tokens_acceso").update({"fecha_expiracion": fecha_str}).eq("token", token).execute()
-        except: pass
     conn.close()
