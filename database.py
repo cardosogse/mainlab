@@ -2,15 +2,16 @@ import sqlite3
 import datetime
 from datetime import timedelta
 import streamlit as st
-from supabase import create_client
 
-# Configuración
 DB_NAME = "mainlab.db"
 
 def inicializar_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso (token TEXT PRIMARY KEY, en_uso INTEGER, vidas INTEGER)''')
+    # Tabla de tokens actualizada con las columnas necesarias
+    c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso 
+                 (token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
+                  score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS admin_config (key TEXT PRIMARY KEY, value TEXT)''')
     c.execute("INSERT OR IGNORE INTO admin_config VALUES ('password', 'admin')")
     conn.commit()
@@ -31,7 +32,7 @@ def generar_token(dias):
     token = f"MAIN-{datetime.datetime.now().strftime('%y%m%d%H%M%S')}"
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("INSERT INTO tokens_acceso VALUES (?, 0, 3)", (token,))
+    c.execute("INSERT INTO tokens_acceso VALUES (?, 0, ?, 0, 3, '1')", (token, "2026-12-31"))
     conn.commit()
     conn.close()
     return token
@@ -64,5 +65,13 @@ def actualizar_password_admin(p):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("UPDATE admin_config SET value = ? WHERE key = 'password'", (p,))
+    conn.commit()
+    conn.close()
+
+def sincronizar_progreso_db(token, modulo, score, vidas):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("UPDATE tokens_acceso SET modulo_actual = ?, score_puntos = ?, vidas = ? WHERE token = ?", 
+              (modulo, score, vidas, token))
     conn.commit()
     conn.close()
