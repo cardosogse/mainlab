@@ -12,13 +12,13 @@ if 'auth' not in st.session_state: st.session_state['auth'] = None
 
 pass_maestra_actual = db.obtener_password_admin()
 
-# Cabecera Estilizada y Botón de Desconexión Superior
-col_tit, col_logout = st.columns([4, 1])
-with col_tit:
-    st.markdown("<h1 class='main-title'>Main<span class='main-title-suffix'>Lab</span></h1>", unsafe_allow_html=True)
-with col_logout:
-    if st.session_state['auth'] is not None:
-        st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+# --- CABECERA GLOBAL (Logo perfectamente centrado en toda la pantalla) ---
+st.markdown("<h1 class='main-title'>Main<span class='main-title-suffix'>Lab</span></h1>", unsafe_allow_html=True)
+
+# Botón de desconexión elegante justo debajo alineado a la derecha
+if st.session_state['auth'] is not None:
+    _, col_logout = st.columns([4, 1])
+    with col_logout:
         if st.button("Cerrar Sesión 🚪", use_container_width=True):
             if st.session_state['auth'] == 'usuario':
                 db.sincronizar_progreso_db(
@@ -48,7 +48,7 @@ def hidratar_sesion_alumno(token, datos_db):
     if 'memo_tablero' not in st.session_state or not st.session_state['memo_tablero']:
         st.session_state['memo_tablero'] = mezclar_memorama()
 
-# Portal de Acceso Operativo
+# Portal de Acceso
 if st.session_state['auth'] is None or st.session_state['auth'] is False:
     entrada = st.text_input("Ingresa Token o Clave Maestra:", type="password")
     if st.button("🚀 ACCEDER AL LABORATORIO", use_container_width=True):
@@ -97,11 +97,10 @@ if st.session_state['auth'] == 'admin':
                     st.rerun()
         else: st.info("No hay tokens ni alumnos registrados en el sistema.")
 
-# --- INTERFAZ DEL ALUMNO (SIN BARRA LATERAL) ---
+# --- INTERFAZ DEL ALUMNO ---
 elif st.session_state['auth'] == 'usuario':
     from modulos.modulo1 import mostrar_modulo1
     
-    # Cálculo automático del tiempo de estudio
     segundos_esta_sesion = int(time.time() - st.session_state['inicio_sesion_unix'])
     st.session_state['tiempo_estudio_seg'] = st.session_state['tiempo_historico_seg'] + segundos_esta_sesion
     
@@ -110,7 +109,6 @@ elif st.session_state['auth'] == 'usuario':
     segundos_totales = st.session_state['tiempo_estudio_seg'] % 60
     reloj_formateado = f"{horas_totales:02d}:{minutos_totales:02d}:{segundos_totales:02d}"
     
-    # Sincronización telemétrica automática y silenciosa
     try:
         db.sincronizar_progreso_db(
             st.session_state['token_actual'], 
@@ -122,7 +120,6 @@ elif st.session_state['auth'] == 'usuario':
     except:
         pass
     
-    # Distribución visual de métricas (4 columnas balanceadas)
     c_tk, c_vd, c_pt, c_tm = st.columns(4)
     c_tk.metric("🔬 Investigador Actual", st.session_state['token_actual'])
     c_vd.metric("❤️ Vidas Críticas", f"{st.session_state['vidas']} / 3")
