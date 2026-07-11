@@ -15,11 +15,9 @@ def obtener_llave_secreta(seccion, llave):
 
 SUPABASE_URL = obtener_llave_secreta("supabase", "SUPABASE_URL")
 SUPABASE_KEY = obtener_llave_secreta("supabase", "SUPABASE_KEY")
-
-# CAMBIO DE MATRIZ: Forzamos la creación de un archivo nuevo y sano en el servidor
 DB_NAME = "mainlab_v3.db"
 
-# --- CAPA DE CONEXIÓN REST A LA NUBE ---
+# --- CAPA DE LECTURA Y ESCRITURA REST HÍBRIDA (ANTI-REINICIOS) ---
 def _supabase_rest_post(tabla: str, payload: dict):
     if not SUPABASE_URL or not SUPABASE_KEY: return
     try:
@@ -61,7 +59,40 @@ def _supabase_rest_delete(tabla: str, columna_filtro: str, valor_filtro: str):
     except Exception:
         pass
 
-# --- CONTROLADORES DE BASE DE DATOS LOCAL (MODO ESTÁNDAR SEGURO) ---
+def _supabase_rest_get_singular(tabla: str, columna_filtro: str, valor_filtro: str):
+    """Consulta un registro específico en la nube para procesos de rehidratación."""
+    if not SUPABASE_URL or not SUPABASE_KEY: return None
+    try:
+        url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{tabla}?{columna_filtro}=eq.{valor_filtro}"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}"
+        }
+        respuesta = requests.get(url, headers=headers, timeout=5)
+        if respuesta.status_code == 200:
+            registros = respuesta.json()
+            return registros[0] if registros else None
+    except Exception:
+        pass
+    return None
+
+def _supabase_rest_get_todo(tabla: str):
+    """Recupera la matriz completa desde la nube si el almacenamiento local se borró."""
+    if not SUPABASE_URL or not SUPABASE_KEY: return []
+    try:
+        url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{tabla}"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}"
+        }
+        respuesta = requests.get(url, headers=headers, timeout=5)
+        if respuesta.status_code == 200:
+            return respuesta.json()
+    except Exception:
+        pass
+    return []
+
+# --- CONTROLADORES DE BASE DE DATOS LOCAL ---
 def _ejecutar_sql_lectura(query: str, params: tuple = ()):
     try:
         with sqlite3.connect(DB_NAME, timeout=10) as conn:
@@ -84,7 +115,6 @@ def _ejecutar_sql_escritura(query: str, params: tuple = ()):
         return False
 
 def inicializar_db():
-    """Crea la estructura física utilizando el modo de almacenamiento estándar compatible."""
     try:
         with sqlite3.connect(DB_NAME, timeout=10) as conn:
             c = conn.cursor()
@@ -100,13 +130,50 @@ def obtener_password_admin():
     return obtener_llave_secreta("config", "ADMIN_PASSWORD") or "ADMIN123"
 
 def validar_token(token: str):
+    """Valida licencias consultando el caché local y rehidratando desde Supabase si es necesario."""
     query = "SELECT score_puntos, vidas, modulo_actual, errores_quiz, tiempo_estudio_min, fecha_expiracion FROM tokens_acceso WHERE token = ?"
     res = _ejecutar_sql_lectura(query, (token,))
+    
+    # RUTA A: El token está en el almacenamiento local
     if res:
         score, vidas, modulo, errores, tiempo_min, fecha_exp = res[0]
         if datetime.date.today().strftime("%Y-%m-%d") > fecha_exp:
             return False, "expired"
         return True, {"puntos": score, "vidas": vidas, "modulo": modulo, "errores": errores, "tiempo": tiempo_min}
+    
+    # RUTA B: El almacenamiento local se borró por reinicio. Buscamos en la nube.
+    registro_nube = _supabase_rest_get_singular("tokens_acceso", "token", token)
+    if registro_nube:
+        fecha_exp = registro_nube.get("fecha_expiracion")
+        if datetime.date.today().strftime("%Y-%m-%d") > fecha_exp:
+            return False, "expired"
+        
+        # Inyección de rehidratación en el archivo local para recuperar el caché
+        query_insert = """
+            INSERT INTO tokens_acceso 
+            (token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, tiempo_estudio_min, errores_quiz) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        _ejecutar_sql_escritura(query_insert, (
+            token,
+            registro_nube.get("en_uso", 0),
+            fecha_exp,
+            registro_nube.get("score_puntos", 0),
+            registro_nube.get("vidas", 3),
+            str(registro_nube.get("modulo_actual", "1")),
+            registro_nube.get("intentos_quiz", 0),
+            registro_nube.get("tiempo_estudio_min", 0),
+            registro_nube.get("errores_quiz", 0)
+        ))
+        
+        return True, {
+            "puntos": registro_nube.get("score_puntos", 0),
+            "vidas": registro_nube.get("vidas", 3),
+            "modulo": str(registro_nube.get("modulo_actual", "1")),
+            "errores": registro_nube.get("errores_quiz", 0),
+            "tiempo": registro_nube.get("tiempo_estudio_min", 0)
+        }
+        
     return False, "invalid"
 
 def sincronizar_progreso_db(token: str, puntos: int, mod: str, vidas: int, tiempo_min: int):
@@ -130,7 +197,6 @@ def guardar_registro_juego(alumno_id: str, dia_modulo: int, puntaje: int, precis
     return True
 
 def generar_token(dias: int) -> str:
-    """Genera licencias de forma lineal sin activar funciones de memoria mapeada."""
     token = f"ML-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
     
@@ -152,8 +218,27 @@ def generar_token(dias: int) -> str:
     return token
 
 def listar_todos_los_tokens():
+    """Lista tokens locales y jala datos de la nube si el almacenamiento se encuentra en blanco."""
     query = "SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, intentos_quiz, tiempo_estudio_min, errores_quiz FROM tokens_acceso"
     filas = _ejecutar_sql_lectura(query)
+    
+    # Si la lista local está vacía por un reinicio de la nube, descargamos y rehidratamos la matriz
+    if not filas:
+        registros_nube = _supabase_rest_get_todo("tokens_acceso")
+        for reg in registros_nube:
+            query_insert = """
+                INSERT OR IGNORE INTO tokens_acceso 
+                (token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, tiempo_estudio_min, errores_quiz) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            _ejecutar_sql_escritura(query_insert, (
+                reg.get("token"), reg.get("en_uso", 0), reg.get("fecha_expiracion"),
+                reg.get("score_puntos", 0), reg.get("vidas", 3), str(reg.get("modulo_actual", "1")),
+                reg.get("intentos_quiz", 0), reg.get("tiempo_estudio_min", 0), reg.get("errores_quiz", 0)
+            ))
+        # Re-leemos la tabla local ahora que está rehidratada
+        filas = _ejecutar_sql_lectura(query)
+        
     claves = ["Token", "Activo", "Expiracion", "Puntos", "Vidas", "Intentos Quiz", "Tiempo Estudio (min)", "Errores Quiz"]
     return [dict(zip(claves, f)) for f in filas]
 
