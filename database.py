@@ -2,9 +2,9 @@ import streamlit as st
 import uuid
 from datetime import datetime, timedelta
 
-# Inicialización centralizada y resiliente del cliente Supabase
 @st.cache_resource
 def init_supabase():
+    """Inicialización centralizada y flexible del cliente de Supabase."""
     try:
         if "supabase" in st.secrets:
             url = st.secrets["supabase"]["url"]
@@ -15,13 +15,14 @@ def init_supabase():
             
         from supabase import create_client
         return create_client(url, key)
-    except Exception:
+    except Exception as e:
+        st.error(f"⚠️ Error crítico en la carga de st.secrets: {str(e)}")
         return None
 
 supabase = init_supabase()
 
 def inicializar_db():
-    """Garantiza la existencia de la persistencia simulada de contingencia local."""
+    """Garantiza la existencia del almacén temporal local de contingencia."""
     if "tokens_locales" not in st.session_state:
         st.session_state["tokens_locales"] = {
             "UNAM-ADMIN-2026": {"tipo": "admin", "vigencia": "2030-12-31"},
@@ -29,18 +30,49 @@ def inicializar_db():
         }
 
 def obtener_password_admin():
-    """Consulta la clave maestra directo en Supabase con fallback local de contingencia."""
+    """
+    Escáner adaptativo multitabla para Supabase.
+    Si la consulta falla, muestra visualmente el error estructural en la interfaz.
+    """
     if supabase:
+        errores_tablas = []
+        
+        # Intento 1: Tabla 'config' (Esquema Clave-Valor)
         try:
             res = supabase.table("config").select("value").eq("key", "password_admin").execute()
-            if res.data:
+            if res.data and len(res.data) > 0:
                 return res.data[0]["value"]
-        except Exception:
-            pass
+        except Exception as e:
+            errores_tablas.append(f"Tabla 'config' -> {str(e)}")
+            
+        # Intento 2: Tabla 'admin' (Esquema Directo)
+        try:
+            res = supabase.table("admin").select("password").execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]["password"]
+        except Exception as e:
+            errores_tablas.append(f"Tabla 'admin' -> {str(e)}")
+            
+        # Intento 3: Tabla 'usuarios' (Esquema por Roles)
+        try:
+            res = supabase.table("usuarios").select("password").eq("rol", "admin").execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]["password"]
+        except Exception as e:
+            errores_tablas.append(f"Tabla 'usuarios' -> {str(e)}")
+
+        # Renderizado de diagnóstico en pantalla si la base de datos respondió pero fallaron las tablas
+        if errores_tablas:
+            with st.sidebar.expander("🔍 DIAGNÓSTICO DE CONEXIÓN SUPABASE", expanded=True):
+                st.error("No se localizó la clave maestra en tus tablas actuales:")
+                for err in errores_tablas:
+                    st.caption(err)
+                st.info("Usa la clave temporal de rescate: ADMIN123")
+
     return "ADMIN123"
 
 def validar_token(token_str):
-    """Valida los tokens de acceso contra Supabase o el diccionario local."""
+    """Valida los tokens de acceso contra Supabase o el almacenamiento local."""
     inicializar_db()
     if not token_str:
         return False, "invalid"
@@ -51,7 +83,7 @@ def validar_token(token_str):
     if supabase:
         try:
             res = supabase.table("tokens").select("*").eq("token_id", token_str).execute()
-            if res.data:
+            if res.data and len(res.data) > 0:
                 fila = res.data[0]
                 payload = {
                     "puntos": fila.get("puntos", 0),
@@ -66,7 +98,7 @@ def validar_token(token_str):
     return False, "invalid"
 
 def sincronizar_progreso_db(token, puntos, modulo, vidas, tiempo):
-    """Sincroniza los avances métricos del estudiante."""
+    """Sincroniza los avances del estudiante en la nube o localmente."""
     inicializar_db()
     if token in st.session_state["tokens_locales"]:
         st.session_state["tokens_locales"][token].update({
@@ -87,7 +119,7 @@ def sincronizar_progreso_db(token, puntos, modulo, vidas, tiempo):
             pass
 
 def generar_token(dias_vigencia):
-    """Crea una nueva licencia única de acceso al entorno educativo."""
+    """Crea una nueva licencia de acceso y la registra en el sistema."""
     inicializar_db()
     nuevo_tk = f"MVZ-{uuid.uuid4().hex[:6].upper()}"
     fecha_exp = (datetime.now() + timedelta(days=dias_vigencia)).strftime("%Y-%m-%d")
@@ -122,7 +154,6 @@ def listar_todos_los_tokens():
     return lista
 
 def forzar_liberacion_sesion(token):
-    """Destruye bloqueos por desconexión involuntaria."""
     pass
 
 def eliminar_token(token):
@@ -137,7 +168,7 @@ def eliminar_token(token):
             pass
 
 def guardar_registro_juego(alumno_id, dia_modulo, puntaje, precision_pct, metadata_juego):
-    """Inserta el récord analítico final en la tabla 'historial_juegos'[cite: 4]."""
+    """Inserta el récord analítico final en la tabla 'historial_juegos'."""
     payload = {
         "alumno_id": alumno_id,
         "dia_modulo": dia_modulo,
