@@ -36,7 +36,7 @@ def inicializar_estado_dia6():
 
 def app():
     inicializar_estado_dia6()
-    token_alumno = st.session_state.get("token_actual", "DEMO")[cite: 20]
+    token_alumno = st.session_state.get("token_actual", "DEMO")
 
     enfoque = st.radio(
         "🔬 Configurar el Analizador de Fluidos:", 
