@@ -1,49 +1,66 @@
 import streamlit as st
 
-def mostrar_modulo1():
+# Importamos los módulos que ya tienes
+from modulos import m1_dia1, m1_dia2, m1_dia3, m1_dia4
+
+# Importación segura para los nuevos módulos que vamos a crear (Días 5 y 6)
+try:
+    from modulos import m1_dia5
+    dia5_listo = True
+except ImportError:
+    dia5_listo = False
+
+try:
+    from modulos import m1_dia6
+    dia6_listo = True
+except ImportError:
+    dia6_listo = False
+
+
+def app():
     """
-    Orquesta la navegación de la Unidad 1 mediante un sistema responsivo de pestañas,
-    optimizando la visualización en dispositivos móviles y aislando fallos de renderizado.
+    Función orquestadora de la Unidad 1.
+    Controla el menú lateral y enruta el tráfico hacia el día correspondiente.
     """
-    # Encabezado estilizado de la Unidad
-    st.markdown("<h2 style='color:#ffffff; margin-top:0;'>Unidad 1: Fundamentos de Química Biológica</h2>", unsafe_allow_html=True)
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🧬 U1: Agua y Equilibrio Ácido-Base")
     
-    # Declaración de pestañas responsivas (Reemplaza a st.radio horizontal)
-    tab_dia1, tab_dia2, tab_dia3, tab_dia4 = st.tabs([
-        "📅 Día 1: Fases y Modelos",
-        "📅 Día 2: Estructura y Bioelementos",
-        "📅 Día 3: Fusión e Interacciones",
-        "📅 Día 4: Homeostasis y pH"
-    ])
+    # El nuevo menú alineado al 100% con la FMVZ UNAM
+    menu_unidad1 = [
+        "Día 1: Bioelementos e Ionización",
+        "Día 2: Enlaces Químicos y Polaridad",
+        "Día 3: Estructura del Agua y Fuerzas",
+        "Día 4: Solubilidad y Micelas",
+        "Día 5: pH y Amortiguadores",
+        "Día 6: Fluidoterapia Clínica"
+    ]
     
-    # ==========================================
-    # CARGA ENCAPSULADA DE CONTENIDOS DIARIOS
-    # ==========================================
+    eleccion = st.sidebar.radio("Selecciona tu sesión:", menu_unidad1)
     
-    with tab_dia1:
-        try:
-            from modulos.m1_dia1 import mostrar_dia1
-            mostrar_dia1()
-        except Exception as e:
-            st.error(f"⚠️ No se pudo cargar el contenido del Día 1: {e}")
+    st.sidebar.markdown("---")
+    st.sidebar.caption("🔬 FMVZ UNAM - Bioquímica Celular")
+
+    # Enrutador de Módulos
+    if eleccion == "Día 1: Bioelementos e Ionización":
+        m1_dia1.app()
+        
+    elif eleccion == "Día 2: Enlaces Químicos y Polaridad":
+        m1_dia2.app()
+        
+    elif eleccion == "Día 3: Estructura del Agua y Fuerzas":
+        m1_dia3.app()
+        
+    elif eleccion == "Día 4: Solubilidad y Micelas":
+        m1_dia4.app()
+        
+    elif eleccion == "Día 5: pH y Amortiguadores":
+        if dia5_listo:
+            m1_dia5.app()
+        else:
+            st.warning("🚧 El módulo del Día 5 (pH y Amortiguadores) está en construcción. ¡Pronto estará disponible!")
             
-    with tab_dia2:
-        try:
-            from modulos.m1_dia2 import mostrar_dia2
-            mostrar_dia2()
-        except Exception as e:
-            st.error(f"⚠️ No se pudo cargar el contenido del Día 2: {e}")
-            
-    with tab_dia3:
-        try:
-            from modulos.m1_dia3 import mostrar_dia3
-            mostrar_dia3()
-        except Exception as e:
-            st.error(f"⚠️ No se pudo cargar el contenido del Día 3: {e}")
-            
-    with tab_dia4:
-        try:
-            from modulos.m1_dia4 import mostrar_dia4
-            mostrar_dia4()
-        except Exception as e:
-            st.error(f"⚠️ No se pudo cargar el contenido del Día 4: {e}")
+    elif eleccion == "Día 6: Fluidoterapia Clínica":
+        if dia6_listo:
+            m1_dia6.app()
+        else:
+            st.warning("🚧 El módulo del Día 6 (Fluidoterapia Clínica) está en construcción. ¡Pronto estará disponible!")
