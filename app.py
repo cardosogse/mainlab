@@ -81,12 +81,21 @@ elif st.session_state['auth'] == 'admin':
         st.query_params.clear()
         st.rerun()
         
-    tab_creacion, tab_monitoreo = st.tabs(["🆕 Crear Licencias", "📊 Monitorear Alumnos"])
+    st.markdown("---")
     
-    with tab_creacion:
+    # SEPARACIÓN ESTRUCTURAL DE FLUJO: Reemplaza st.tabs para evitar colisiones síncronas de lectura/escritura
+    opcion_admin = st.radio(
+        "Selecciona la acción a realizar:",
+        ["🆕 Crear Licencias", "📊 Monitorear Alumnos"],
+        horizontal=True,
+        key="admin_menu_selector"
+    )
+    
+    st.markdown("---")
+
+    if opcion_admin == "🆕 Crear Licencias":
         dias_vigencia = st.number_input("Días de vigencia activa:", min_value=1, value=30, key="admin_dias_input")
         if st.button("Generar Nueva Licencia", key="admin_btn_generar"):
-            # ESCUDO DE PROTECCIÓN INTERNA CONTRA EL PÁNICO DE RERUNS
             try:
                 token_nuevo = db.generar_token(dias_vigencia)
                 if token_nuevo: 
@@ -105,8 +114,7 @@ elif st.session_state['auth'] == 'admin':
                 st.session_state['ultimo_token_generado'] = None
                 st.rerun()
             
-    with tab_monitoreo:
-        # PROTECCIÓN EN LA PESTAÑA DE LECTURA DE MATRIZ
+    elif opcion_admin == "📊 Monitorear Alumnos":
         try:
             tabla_datos = db.listar_todos_los_tokens()
             if tabla_datos:
@@ -129,7 +137,7 @@ elif st.session_state['auth'] == 'admin':
             else:
                 st.info("No existen licencias registradas en el clúster de datos.")
         except Exception as ex:
-            st.error(f"🚨 Error crítico en la pestaña de monitoreo: {str(ex)}")
+            st.error(f"🚨 Error crítico en el monitoreo: {str(ex)}")
             st.text(traceback.format_exc())
 
 elif st.session_state['auth'] == 'usuario':
