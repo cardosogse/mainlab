@@ -1,36 +1,30 @@
 import streamlit as st
 from supabase import create_client, Client
 
-# Inicialización centralizada y en caché del cliente de Supabase
-@st.cache_resource
+# QUITAMOS el @st.cache_resource temporalmente
 def init_supabase() -> Client:
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+    # Depuración: Verificamos si los secretos existen
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        return create_client(url, key)
+    except Exception as e:
+        st.error(f"Error detectado al leer secretos: {e}")
+        st.stop()
 
-# Instancia global para ser importada en los demás módulos
+# Instancia global
 supabase = init_supabase()
 
-def guardar_registro_juego(alumno_id: str, dia_modulo: int, puntaje: int, precision_pct: int, metadata_juego: dict) -> bool:
-    """
-    Inserta el progreso del alumno en la tabla universal 'historial_juegos'.
-    Utiliza un bloque Failsafe (try-except) para evitar que la app colapse 
-    en el celular del alumno si la base de datos no está lista o hay latencia.
-    """
+def guardar_registro_juego(alumno_id, dia_modulo, puntaje, precision_pct, metadata_juego):
     payload = {
         "alumno_id": alumno_id,
         "dia_modulo": dia_modulo,
         "puntaje": puntaje,
         "precision_pct": precision_pct,
-        "metadata_juego": metadata_juego  # Supabase absorbe este diccionario como JSONB nativo
+        "metadata_juego": metadata_juego
     }
-    
     try:
-        # Intento de inserción en la nube
         supabase.table("historial_juegos").insert(payload).execute()
         return True
-    except Exception as e:
-        # Falla silenciosa protectora. 
-        # (Opcional: puedes dejar el print para depurar en tu consola local)
-        # print(f"Error silencioso BD: {e}")
+    except Exception:
         return False
