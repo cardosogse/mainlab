@@ -31,7 +31,6 @@ def inicializar_db():
             score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT,
             intentos_quiz INTEGER, tiempo_estudio_min INTEGER, errores_quiz INTEGER)''')
         
-        # ESCUDO DE MIGRACIÓN: Detecta tablas antiguas y añade las columnas analíticas faltantes
         c.execute("PRAGMA table_info(tokens_acceso)")
         columnas_existentes = [col[1] for col in c.fetchall()]
         
@@ -96,14 +95,19 @@ def guardar_registro_juego(alumno_id: str, dia_modulo: int, puntaje: int, precis
         return False
 
 def generar_token(dias: int) -> str:
-    """Generates a token completely decoupled from the UI layer."""
+    """Genera una licencia utilizando mapeo explícito de columnas para evitar conflictos."""
     token = f"ML-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
     
     try:
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            c.execute("INSERT INTO tokens_acceso VALUES (?, 0, ?, 0, 3, '1', 0, 0, 0)", (token, fecha_exp))
+            # SE DEFINE LA ESTRUCTURA EXPLÍCITA DE COLUMNAS
+            c.execute("""
+                INSERT INTO tokens_acceso 
+                (token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, tiempo_estudio_min, errores_quiz) 
+                VALUES (?, 0, ?, 0, 3, '1', 0, 0, 0)
+            """, (token, fecha_exp))
             conn.commit()
     except sqlite3.Error as e:
         st.error(f"Error al generar licencia en almacenamiento local: {str(e)}")
