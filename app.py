@@ -9,7 +9,6 @@ cargar_estilos()
 db.inicializar_db()
 
 class ControlEstadoGlobal:
-    """Encapsulación estricta del árbol de estados para evitar colisiones de memoria."""
     @staticmethod
     def asegurar_hidratacion():
         esquema_estados = {
@@ -24,7 +23,6 @@ class ControlEstadoGlobal:
 ControlEstadoGlobal.asegurar_hidratacion()
 pass_maestra = db.obtener_password_admin()
 
-# --- ESCUDO CON MÁXIMO AISLAMIENTO ANTI-CRASH ---
 if st.session_state['auth'] is None and "token" in st.query_params:
     token_candidato = st.query_params["token"].strip()
     if token_candidato:
@@ -41,14 +39,12 @@ if st.session_state['auth'] is None and "token" in st.query_params:
             st.query_params.clear()
             st.rerun()
 
-# --- RENDERIZADO DE CABECERA ---
 st.markdown(
     '<div class="logo-container"><h1 class="main-title">Main<span class="main-title-suffix">Lab</span></h1>'
-    '<p class="main-subtitle">Bioquímica aplicada. Ciencia interactiva. Sin límites.</p></div>', 
+    '<p class="main-subtitle">Bioquimica aplicada. Ciencia interactiva. Sin limites.</p></div>', 
     unsafe_allow_html=True
 )
 
-# --- RUTAS DE NAVEGACIÓN PRINCIPALES ---
 if st.session_state['auth'] is None:
     st.markdown("<div class='login-box'>", unsafe_allow_html=True)
     credencial = st.text_input("Ingresa Licencia o Clave Maestra:", type="password")
@@ -78,12 +74,14 @@ elif st.session_state['auth'] == 'admin':
     tab_creacion, tab_monitoreo = st.tabs(["🆕 Crear Licencias", "📊 Monitorear Alumnos"])
     
     with tab_creacion:
-        dias_vigencia = st.number_input("Días de vigencia activa:", min_value=1, value=30)
-        if st.button("Generar Nueva Licencia"):
+        dias_vigencia = st.number_input("Días de vigencia activa:", min_value=1, value=30, key="admin_dias_input")
+        if st.button("Generar Nueva Licencia", key="admin_btn_generar"):
             token_nuevo = db.generar_token(dias_vigencia)
             if token_nuevo: 
-                st.code(f"TOKEN GENERADO: {token_nuevo}", language="text")
-                st.success("Licencia inyectada con éxito en la red híbrida.")
+                st.success(f"¡Licencia inyectada con éxito! Cópiala: {token_nuevo}")
+                st.code(token_nuevo, language="text")
+                time.sleep(1.0)
+                st.rerun() # Limpieza inmediata del ciclo de rendering
             
     with tab_monitoreo:
         tabla_datos = db.listar_todos_los_tokens()
@@ -92,8 +90,12 @@ elif st.session_state['auth'] == 'admin':
             st.dataframe(dataframe_tokens, use_container_width=True)
             
             st.markdown("---")
-            token_a_eliminar = st.selectbox("Selecciona una licencia para su purga física:", dataframe_tokens["Token"].tolist())
-            if st.button("❌ DESTRUIR LICENCIA DEFINITIVAMENTE", use_container_width=True):
+            token_a_eliminar = st.selectbox(
+                "Selecciona una licencia para su purga física:", 
+                dataframe_tokens["Token"].tolist(),
+                key="admin_select_revocar"
+            )
+            if st.button("❌ DESTRUIR LICENCIA DEFINITIVAMENTE", use_container_width=True, key="admin_btn_revocar"):
                 db.eliminar_token(token_a_eliminar)
                 st.toast(f"Licencia {token_a_eliminar} revocada del servidor.", icon="🗑️")
                 time.sleep(0.5)
@@ -101,14 +103,13 @@ elif st.session_state['auth'] == 'admin':
         else:
             st.info("No existen licencias registradas en el clúster de datos.")
         
-    if st.button("🚪 Salir del Panel de Control"):
+    if st.button("🚪 Salir del Panel de Control", key="admin_btn_salir"):
         st.session_state['auth'] = None
         st.session_state['token_actual'] = None
         st.query_params.clear()
         st.rerun()
 
 elif st.session_state['auth'] == 'usuario':
-    # Calcular y acumular tiempo lineal sin saltos por refresco
     minutos_de_sesion = int((time.time() - st.session_state['inicio_sesion_unix']) / 60)
     st.session_state['tiempo_estudio_min'] = st.session_state['tiempo_historico_min'] + minutos_de_sesion
     
@@ -123,6 +124,5 @@ elif st.session_state['auth'] == 'usuario':
     if st.session_state['vidas'] <= 0:
         st.error("🚨 **ACCESO SUSPENDIDO:** El alumno ha agotado su vitalidad metabólica. Contacta al docente.")
     else:
-        # Carga desacoplada del módulo dinámico
         from modulos.modulo1 import app as enrutador_modulo1
         enrutador_modulo1()
