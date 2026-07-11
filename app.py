@@ -4,10 +4,8 @@ import time
 import database as db
 from assets import cargar_estilos
 
-# Configuración base de pantalla
 st.set_page_config(page_title="MainLab", layout="wide", page_icon="🧬", initial_sidebar_state="expanded")
 
-# Cargar diseño estético del Sistema 1
 cargar_estilos()
 db.inicializar_db()
 
@@ -23,25 +21,29 @@ def inicializar_estados_globales():
 inicializar_estados_globales()
 pass_maestra = db.obtener_password_admin()
 
-# --- ESCUDO ANTI-REFRESCO (Persistencia en URL) ---
+# --- ESCUDO ANTI-REFRESCO BLINDADO CONTRA ERRORES 'OH NO.' ---
 if st.session_state['auth'] is None and "token" in st.query_params:
     token_url = st.query_params["token"].strip()
-    es_valido, payload = db.validar_token(token_url)
-    if es_valido:
-        st.session_state['auth'] = 'usuario'
-        st.session_state['token_actual'] = token_url
-        st.session_state['puntos_acumulados'] = payload["puntos"]
-        st.session_state['vidas'] = payload["vidas"]
-        st.session_state['tiempo_historico_min'] = payload["tiempo"]
-        st.session_state['inicio_sesion_unix'] = time.time()
-        st.rerun()
+    if token_url and len(token_url) > 0:
+        es_valido, payload = db.validar_token(token_url)
+        if es_valido:
+            st.session_state['auth'] = 'usuario'
+            st.session_state['token_actual'] = token_url
+            st.session_state['puntos_acumulados'] = payload.get("puntos", 0)
+            st.session_state['vidas'] = payload.get("vidas", 3)
+            st.session_state['tiempo_historico_min'] = payload.get("tiempo", 0)
+            st.session_state['inicio_sesion_unix'] = time.time()
+            st.rerun()
+        else:
+            st.query_params.clear()
+            st.rerun()
 
-# --- CABECERA ESTÉTICA SISTEMA 1 ---
+# --- CABECERA ESTÉTICA COMPLETA SISTEMA 1 ---
 st.markdown(
     """
     <div class="logo-container">
         <h1 class="main-title">Main<span class="main-title-suffix">Lab</span></h1>
-        <p class="main-subtitle">Bioquímica aplicada • FMVZ UNAM</p>
+        <p class="main-subtitle">Bioquimica aplicada. Ciencia interactiva. Sin limites.</p>
     </div>
     """, 
     unsafe_allow_html=True
@@ -54,8 +56,6 @@ if st.session_state['auth'] is None:
     
     if st.button("🚀 ACCEDER AL LABORATORIO", use_container_width=True):
         entrada_clean = entrada.strip()
-        
-        # Validación Jerárquica Segura (Cero Backdoors)
         if pass_maestra and entrada_clean == pass_maestra:
             st.session_state['auth'] = 'admin'
             st.rerun()
@@ -76,7 +76,7 @@ if st.session_state['auth'] is None:
                 st.error("❌ Credencial inválida.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- CONSOLA DE ADMINISTRACIÓN ---
+# --- CONSOLA DE ADMINISTRACIÓN EXPANDIDA ---
 elif st.session_state['auth'] == 'admin':
     st.subheader("🔑 Consola de Licencias")
     t_gen, t_mon = st.tabs(["🆕 Crear Licencias", "📊 Monitorear Alumnos"])
@@ -89,20 +89,30 @@ elif st.session_state['auth'] == 'admin':
             
     with t_mon:
         datos = db.listar_todos_los_tokens()
-        if datos: st.dataframe(pd.DataFrame(datos), use_container_width=True)
-        else: st.info("No hay registros.")
+        if datos:
+            df = pd.DataFrame(datos)
+            st.dataframe(df, use_container_width=True)
+            
+            # --- SECCIÓN DE ELIMINACIÓN DE TOKENS HABILITADA ---
+            st.markdown("---")
+            st.markdown("#### 🗑️ Zona de Revocación de Licencias")
+            token_sel = st.selectbox("Selecciona un Token de la matriz para eliminarlo:", df["Token"].tolist())
+            if st.button("❌ DESTRUIR LICENCIA DEFINITIVAMENTE", use_container_width=True):
+                db.eliminar_token(token_sel)
+                st.toast(f"Licencia {token_sel} purgada con éxito.", icon="🗑️")
+                time.sleep(1.0)
+                st.rerun()
+        else:
+            st.info("No hay registros en la base de datos.")
         
     if st.button("🚪 Salir de Panel"):
         st.session_state['auth'] = None
         st.rerun()
 
-# --- ENTORNO DEL ESTUDIANTE (Con telemetría integrada) ---
 elif st.session_state['auth'] == 'usuario':
-    # Cálculo del tiempo de estudio
     minutos_sesion = int((time.time() - st.session_state['inicio_sesion_unix']) / 60)
     st.session_state['tiempo_estudio_min'] = st.session_state['tiempo_historico_min'] + minutos_sesion
     
-    # Cuadro superior de métricas fijas
     st.markdown("<div class='dashboard-triage'>", unsafe_allow_html=True)
     c_tk, c_vd, c_pt, c_tm = st.columns(4)
     c_tk.metric("🔬 Licencia", st.session_state['token_actual'])
