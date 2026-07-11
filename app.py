@@ -41,24 +41,22 @@ if st.session_state['auth'] is None and "token" in st.query_params:
             st.query_params.clear()
             st.rerun()
 
-# El título principal se mantiene como bloque HTML aislado en la parte superior
 st.markdown(
     '<div class="logo-container"><h1 class="main-title">Main<span class="main-title-suffix">Lab</span></h1>'
     '<p class="main-subtitle">Bioquímica aplicada. Ciencia interactiva. Sin límites.</p></div>', 
     unsafe_allow_html=True
 )
 
-# --- PANEL DE ACCESO PURIFICADO (100% COMPATIBLE CON MÓVILES) ---
+# --- PANEL DE ACCESO PURIFICADO (COMPATIBILIDAD NATIVA TOTAL) ---
 if st.session_state['auth'] is None:
     
-    # SECCIÓN A: Formulario de Entrada Estándar
-    st.markdown("### 🔑 ACCESO AL LABORATORIO")
+    # SECCIÓN A: Componentes nativos para las credenciales
+    st.subheader("🔑 Acceso al Laboratorio")
     
     credencial = st.text_input(
         "Introduce tu Licencia o Clave Maestra:", 
         type="password", 
-        key="login_input_credencial",
-        label_visibility="visible"
+        key="login_input_credencial"
     )
     
     if st.button("🚀 INICIAR INVESTIGACIÓN", use_container_width=True, key="login_btn_acceder"):
@@ -80,11 +78,11 @@ if st.session_state['auth'] is None:
             else:
                 st.error("❌ Credencial inválida o vencida.")
     
-    # Separador estructural nativo
-    st.markdown("---")
+    # Separador nativo responsivo
+    st.divider()
     
-    # SECCIÓN B: Gancho Interactivo Abierto
-    st.markdown("### 🔬 ANALIZADOR ORGÁNICO EXPRÉS")
+    # SECCIÓN B: Componentes nativos para el Gancho Abierto
+    st.subheader("🔬 Analizador Orgánico Exprés")
     st.caption("Prueba el potencial del laboratorio interactivo antes de ingresar tu licencia clínica:")
     
     grupo_test = st.selectbox(
@@ -175,7 +173,7 @@ elif st.session_state['auth'] == 'admin':
 # --- VISTA DEL ALUMNO ---
 elif st.session_state['auth'] == 'usuario':
     minutos_de_sesion = int((time.time() - st.session_state['inicio_sesion_unix']) / 60)
-    st.session_state['tiempo_estudio_min'] = st.session_state['tiempo_historico_min'] + minutes_de_sesion
+    st.session_state['tiempo_estudio_min'] = st.session_state['tiempo_historico_min'] + minutos_de_sesion
     
     st.markdown("<div class='dashboard-triage'>", unsafe_allow_html=True)
     c_tk, c_vd, c_pt, c_tm = st.columns(4)
