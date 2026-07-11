@@ -115,7 +115,8 @@ if st.session_state['auth'] is None:
         st.session_state['procesando'] = True
         entrada_clean = entrada.strip()
         
-        if entrada_clean == pass_maestra_actual:
+        # CORRECCIÓN DE ORO: Garantiza el acceso con la clave Supabase o con la de rescate local
+        if entrada_clean == pass_maestra_actual or entrada_clean == "ADMIN123":
             st.session_state['auth'] = 'admin'
             st.session_state['procesando'] = False
             st.rerun()
@@ -130,7 +131,7 @@ if st.session_state['auth'] is None:
                 elif payload == "expired":
                     st.error("🚨 El token ingresado ha caducado.")
                 else:
-                    st.error("Credencial inválida.")
+                    st.error(f"Credencial inválida. (Nota: La clave ingresada tampoco coincide con el parámetro actual de Supabase).")
         st.session_state['procesando'] = False
 
 elif st.session_state['auth'] == 'admin':
