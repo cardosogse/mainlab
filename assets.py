@@ -3,18 +3,18 @@ import random
 
 def cargar_estilos():
     """
-    Inyecta los estilos CSS nativos de alta fidelidad del Sistema 1.
-    Restaura el fondo del universo con estrellas centelleantes fijas,
-    el pulso de neón original y la interactividad reactiva de los botones.
+    Inyecta los estilos CSS nativos del Sistema 1.
+    Fondo negro profundo con estrellas atómicas ultra-nítidas sin auras,
+    pulso de neón original y botones interactivos reactivos.
     """
     estilos = """
     <style>
         [data-testid="stHeader"] { visibility: hidden; }
         footer { visibility: hidden; }
         
-        /* --- FONDO DEL UNIVERSO ESTRELLADO (SISTEMA 1) --- */
+        /* --- FONDO DEL UNIVERSO ESTRELLADO NÍTIDO (SISTEMA 1) --- */
         .stApp {
-            background: radial-gradient(circle at center, #0a0e17 0%, #030508 100%) !important;
+            background: radial-gradient(circle at center, #090d16 0%, #020305 100%) !important;
             background-attachment: fixed !important;
             color: #c9d1d9;
         }
@@ -23,13 +23,14 @@ def cargar_estilos():
             content: "";
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
+            /* Estrellas atómicas: puntos ultra pequeños con corte inmediato a transparent */
             background-image: 
-                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
-                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px),
-                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px);
-            background-size: 550px 550px, 350px 350px, 250px 250px;
-            background-position: 0 0, 40px 60px, 130px 270px;
-            opacity: 0.25;
+                radial-gradient(rgba(255, 255, 255, 0.8) 1px, transparent 2px),
+                radial-gradient(rgba(255, 255, 255, 0.6) 1.5px, transparent 3px),
+                radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 2px);
+            background-size: 250px 250px, 180px 180px, 320px 320px;
+            background-position: 0 0, 40px 60px, 130px 190px;
+            opacity: 0.35;
             z-index: 0;
             pointer-events: none;
         }
