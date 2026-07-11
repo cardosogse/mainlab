@@ -1,133 +1,201 @@
 import streamlit as st
-import pandas as pd
-import database as db
+import random
+from database import guardar_registro_juego
 
-def mostrar_dia2():
-    """
-    Renderiza las actividades lógicas del Día 2. Combina un laboratorio dinámico de 
-    construcción nuclear e iónica con una matriz periódica de consulta clínica veterinaria.
-    """
-    st.subheader("Día 2: El Micro-Constructor Atómico y Propiedades Periódicas")
+# Base de datos local de bioelementos y su electronegatividad (Escala de Pauling)
+BIOELEMENTOS = {
+    "Oxígeno (O)": {"simbolo": "O", "chi": 3.44},
+    "Nitrógeno (N)": {"simbolo": "N", "chi": 3.04},
+    "Carbono (C)": {"simbolo": "C", "chi": 2.55},
+    "Hidrógeno (H)": {"simbolo": "H", "chi": 2.20},
+    "Sodio (Na)": {"simbolo": "Na", "chi": 0.93},
+    "Cloro (Cl)": {"simbolo": "Cl", "chi": 3.16},
+    "Calcio (Ca)": {"simbolo": "Ca", "chi": 1.00},
+    "Fósforo (P)": {"simbolo": "P", "chi": 2.19}
+}
+
+# Base de preguntas para "El Intruso Químico"
+INTRUSOS_DB = [
+    {"opciones": ["O-O (O₂)", "C-H (Metano)", "N-N (N₂)", "Na-Cl (Sal)"], "intruso": "Na-Cl (Sal)", "razon": "El NaCl es Iónico, los demás son Covalentes Apolares."},
+    {"opciones": ["O-H (Agua)", "N-H (Amoníaco)", "C-O (Carbonilo)", "O-O (O₂)"], "intruso": "O-O (O₂)", "razon": "El O₂ es Apolar puro, los demás son Covalentes Polares."},
+    {"opciones": ["Ca-Cl (Cloruro de Calcio)", "K-Cl (Cloruro de Potasio)", "Na-Cl (Cloruro de Sodio)", "C-H (Metano)"], "intruso": "C-H (Metano)", "razon": "El enlace C-H es Apolar, los demás son Iónicos clásicos."}
+]
+
+def inicializar_estado():
+    """Blindaje de variables de sesión para el Día 2."""
+    if "d2_juego_score" not in st.session_state:
+        st.session_state.d2_juego_score = 0
+    if "d2_juego_intentos" not in st.session_state:
+        st.session_state.d2_juego_intentos = 0
+    if "d2_quiz_enviado" not in st.session_state:
+        st.session_state.d2_quiz_enviado = False
+    if "d2_ronda_actual" not in st.session_state:
+        st.session_state.d2_ronda_actual = random.choice(INTRUSOS_DB)
+
+def app():
+    st.title("💥 Día 2: Enlaces y Polaridad")
+    st.markdown("¿Por qué el agua disuelve la sangre pero no la grasa? La respuesta está en la geometría de sus nubes electrónicas.")
     
-    # Segmentación por pestañas para optimizar la ergonomía visual en móviles y escritorio
-    tab_constructor, tab_roles = st.tabs([
-        "🔬 Constructor de Isótopos e Iones", 
-        "🗺️ Matriz de Roles Clínicos Veterinarios"
-    ])
-    
-    # Base de datos centralizada de bioelementos con sus propiedades físicas y fisiológicas
-    tabla_elementos = {
-        1: {"simbolo": "H", "nombre": "Hidrógeno", "electneg": "2.20", "bio": "Regulador directo del pH (iones hidronio) y del balance hídrico orgánico."},
-        6: {"simbolo": "C", "nombre": "Carbono", "electneg": "2.55", "bio": "Esqueleto maestro orgánico capaz de estructurar hasta 4 enlaces covalentes estables."},
-        7: {"simbolo": "N", "nombre": "Nitrógeno", "electneg": "3.04", "bio": "Constituyente intrínseco de aminoácidos, proteínas estructurales y bases nitrogenadas del ADN/ARN."},
-        8: {"simbolo": "O", "nombre": "Oxígeno", "electneg": "3.44", "bio": "Aceptor final de electrones en la cadena respiratoria mitocondrial para la síntesis de ATP."},
-        11: {"simbolo": "Na", "nombre": "Sodio", "electneg": "0.93", "bio": "Principal catión extracelular; gobierna la presión osmótica plasmática y la despolarización neuronal."},
-        12: {"simbolo": "Mg", "nombre": "Magnesio", "electneg": "1.31", "bio": "Cofactor indispensable para estabilizar energéticamente la molécula de ATP y activar quinasas."},
-        15: {"simbolo": "P", "nombre": "Fósforo", "electneg": "2.19", "bio": "Constituyente estructural de enlaces fosfodiéster, fosfolípidos de membrana y transferencia energética (ATP)."},
-        16: {"simbolo": "S", "nombre": "Azufre", "electneg": "2.58", "bio": "Forma puentes disulfuro covalentes, determinantes para la estructura terciaria de proteínas y la queratina."},
-        17: {"simbolo": "Cl", "nombre": "Cloro", "electneg": "3.16", "bio": "Anión extracelular maestro encargado de mantener la neutralidad eléctrica salina y el equilibrio ácido-base."},
-        20: {"simbolo": "Ca", "nombre": "Calcio", "electneg": "1.00", "bio": "Segundo mensajero intracelular crítico para la contracción miocárdica, la cascada de coagulación y el soporte óseo."}
-    }
+    inicializar_estado()
+
+    # Selector de Enfoque Clínico
+    enfoque = st.radio("Selecciona tu enfoque de análisis:", ["🐾 Veterinaria", "🩺 Medicina", "🧬 Biología"], horizontal=True)
+
+    tab1, tab2, tab3 = st.tabs(["🔬 Reactor de Fusión", "🎮 Juego: El Intruso Químico", "📝 Quiz de Certificación"])
 
     # ==========================================
-    # PESTAÑA 1: LABORATORIO INTERACTIVO (CONSTRUCTOR)
+    # PESTAÑA 1: TEORÍA Y REACTOR DE FUSIÓN
     # ==========================================
-    with tab_constructor:
-        st.markdown("### 🛠️ Simulación de Estructura Nuclear y Estados de Oxidación")
-        st.write(
-            "Manipula los controles deslizantes para ensamblar partículas subatómicas. Observa cómo "
-            "el balance de cargas determina si obtienes un átomo neutro o un **ion** "
-            "(ya sea un *catión* [ion con carga neta positiva] o un *anión* [ion con carga neta negativa])."
-        )
-        
-        with st.container(border=True):
-            col_controles, col_matriz = st.columns([2, 1])
-            
-            with col_controles:
-                protones = st.slider("Protones (Número Atómico $Z$):", min_value=1, max_value=20, value=6, key="sld_protones")
-                neutrones = st.slider("Neutrones (Masa Nuclear $N$):", min_value=0, max_value=22, value=6, key="sld_neutrones")
-                electrones = st.slider("Electrones (Nube Electrónica $e^-$):", min_value=0, max_value=20, value=6, key="sld_electrones")
-                
-            # Fórmulas de física nuclear aplicadas de forma automatizada
-            masa_atomica = protones + neutrones  # A = Z + N
-            carga_neta = protones - electrones   # q = Z - e-
-            
-            # Determinación cualitativa del estado de ionización
-            if carga_neta == 0:
-                estado_quimico = "Átomo Neutro (Estabilidad Eléctrica)"
-                tipo_alerta = st.info
-            elif carga_neta > 0:
-                estado_quimico = f"Catión Clínico (+{carga_neta})"
-                tipo_alerta = st.success
-            else:
-                estado_quimico = f"Anión Clínico ({carga_neta})"
-                tipo_alerta = st.error
-            
-            with col_matriz:
-                st.markdown("#### **Matriz Isotopicat**")
-                st.metric("Identidad Química ($Z$)", f"{protones} p⁺")
-                st.metric("Masa Total ($A$)", f"{masa_atomica} u")
-                tipo_alerta(estado_quimico)
-        
-        # Integración Dinámica Inmediata: Renderiza la casilla correspondiente en el mismo flujo visual
-        st.markdown("#### **Ficha del Elemento Resultante**")
-        if protones in tabla_elementos:
-            el = tabla_elementos[protones]
-            
-            # Estructura visual responsiva para la tarjeta del elemento configurado
-            st.markdown(f"""
-            <div style="display: flex; gap: 15px; align-items: center; background-color: #0f172a; padding: 20px; border-radius: 8px; border: 1px solid #334155;">
-                <div style="background-color: #00e5ff; color: #000; font-size: 2.3rem; font-weight: 900; width: 75px; height: 75px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">{el['simbolo']}</div>
-                <div>
-                    <b style='color:#ffffff; font-size:1.2rem;'>{el['nombre']} (Z = {protones})</b><br>
-                    <span style='color: #94a3b8;'>Electronegatividad de Pauling:</span> <b style='color:#00e5ff;'>{el['electneg']}</b><br>
-                    <p style='margin: 5px 0 0 0; color: #e2e8f0;'><b>Relevancia Médica:</b> {el['bio']}</p>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.caption(
-                "🔬 **Átomo fuera de alcance biológico:** Sigue ajustando el número de protones. "
-                "Cuando configures los números atómicos de los bioelementos esenciales (tales como Z=1, 6, 7, 8, 11, 12, 15, 16, 17 o 20) "
-                "se desplegará automáticamente su ficha metabólica en este espacio."
-            )
-
-    # ==========================================
-    # PESTAÑA 2: MATRIZ COMPLETA DE CONSULTA (TABLA ESTÁTICA HIGIÉNICA)
-    # ==========================================
-    with tab_roles:
-        st.markdown("### 🗺️ Propiedades de los Bioelementos Esenciales")
-        st.write(
-            "A continuación se presenta el mapa analítico con los 10 elementos químicos fundamentales "
-            "para la fisiología, diagnóstico clínico y terapéutica en medicina veterinaria y zootecnia."
-        )
-        
-        # Transformación de la estructura del diccionario a un DataFrame limpio para evitar token-spew
-        lista_elementos_df = [
-            {
-                "Z": k, 
-                "Símbolo": v["simbolo"], 
-                "Bioelemento": v["nombre"], 
-                "Electronegatividad": v["electneg"], 
-                "Impacto Fisiológico y Clínico": v["bio"]
-            } 
-            for k, v in tabla_elementos.items()
-        ]
-        
-        df_elementos = pd.DataFrame(lista_elementos_df)
-        
-        # Despliegue seguro e interactivo del DataFrame de consulta
-        st.dataframe(
-            df_elementos.set_index("Z"), 
-            use_container_width=True,
-            column_config={
-                "Símbolo": st.column_config.TextColumn("Símbolo", width="small"),
-                "Electronegatividad": st.column_config.TextColumn("Electronegatividad", width="small"),
-            }
-        )
-        
+    with tab1:
+        st.header("Fundamentos: La Escala de Pauling")
         st.markdown(
-            "> **Nota del Experto:** La diferencia de *electronegatividad* (capacidad de un átomo para atraer electrones) "
-            "entre estos elementos determinará si interactúan mediante enlaces covalentes polares, apolares o enlaces iónicos "
-            "en los fluidos corporales del paciente."
+            "La **Electronegatividad ($\chi$)** es la fuerza con la que un átomo atrae los electrones de un enlace hacia sí mismo. "
+            "Para predecir el comportamiento biológico de una molécula, calculamos la diferencia ($\Delta \chi$) entre sus átomos:"
         )
+        
+        st.info("**$\Delta \chi < 0.4$ : Covalente Apolar** (Comparten por igual, lipofílicos, atraviesan membranas).")
+        st.warning("**$\Delta \chi$ entre 0.4 y 1.7 : Covalente Polar** (Tienen polos eléctricos, hidrofílicos, solubles en plasma).")
+        st.error("**$\Delta \chi > 1.7$ : Iónico** (Robo total de electrones, forman cristales, conducen electricidad).")
+
+        st.markdown("---")
+        st.subheader("🔬 Reactor de Fusión de Enlaces")
+        st.markdown("Selecciona dos bioelementos para colisionarlos y observa cómo se deforma la nube electrónica.")
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            atomo_a = st.selectbox("Átomo A:", list(BIOELEMENTOS.keys()), index=3) # Default H
+        with col_b:
+            atomo_b = st.selectbox("Átomo B:", list(BIOELEMENTOS.keys()), index=0) # Default O
+
+        if st.button("💥 ¡COLISIONAR!", use_container_width=True, type="primary"):
+            datos_a = BIOELEMENTOS[atomo_a]
+            datos_b = BIOELEMENTOS[atomo_b]
+            
+            # Cálculo matemático absoluto del Delta Chi
+            delta_chi = round(abs(datos_a["chi"] - datos_b["chi"]), 2)
+            
+            # Determinación de los roles para Iónico
+            cat = datos_a["simbolo"] if datos_a["chi"] < datos_b["chi"] else datos_b["simbolo"]
+            an = datos_b["simbolo"] if datos_a["chi"] < datos_b["chi"] else datos_a["simbolo"]
+
+            st.markdown(f"### $\Delta \chi = | {datos_a['chi']} - {datos_b['chi']} | = {delta_chi}$")
+
+            # Renderizado Condicional HTML/CSS
+            if delta_chi < 0.4:
+                st.success("**Diagnóstico:** Enlace Covalente Apolar. Compartición equitativa.")
+                html = f"<div class='nube-apolar'><span>{datos_a['simbolo']}</span><span>{datos_b['simbolo']}</span></div>"
+            elif delta_chi <= 1.7:
+                st.warning("**Diagnóstico:** Enlace Covalente Polar. Nube deformada hacia el polo más electronegativo.")
+                # Colocamos el más electronegativo a la derecha visualmente
+                html = f"<div class='nube-polar'><span>{datos_a['simbolo']}</span><span>{datos_b['simbolo']}</span></div>"
+            else:
+                st.error("**Diagnóstico:** Enlace Iónico. Ruptura de la nube y formación de iones libres.")
+                html = f"<div class='ruptura-ionica'><div class='ion-cat'>{cat}⁺</div><div class='ion-an'>{an}⁻</div></div>"
+
+            st.markdown(html, unsafe_allow_html=True)
+
+
+    # ==========================================
+    # PESTAÑA 2: JUEGO - EL INTRUSO QUÍMICO
+    # ==========================================
+    with tab2:
+        st.header("🎮 El Intruso Químico")
+        st.markdown("Reconocimiento de patrones: Tres de estos enlaces pertenecen a la misma familia termodinámica. Uno es el intruso. **¡Encuéntralo!**")
+        
+        st.metric("Puntaje Acumulado", st.session_state.d2_juego_score)
+        st.markdown("---")
+        
+        ronda = st.session_state.d2_ronda_actual
+        opciones = ronda["opciones"]
+        # Mezclamos las opciones visualmente
+        opciones_mezcladas = random.sample(opciones, len(opciones))
+        
+        def verificar_intruso(seleccion):
+            st.session_state.d2_juego_intentos += 1
+            if seleccion == ronda["intruso"]:
+                st.session_state.d2_juego_score += 15
+                st.toast(f"¡Correcto! {ronda['razon']}", icon="✅")
+                # Siguiente ronda aleatoria
+                st.session_state.d2_ronda_actual = random.choice(INTRUSOS_DB)
+            else:
+                st.session_state.d2_juego_score -= 5
+                st.toast("Ese no es el intruso. Analiza la polaridad.", icon="❌")
+
+        # Botones de ancho completo para celular
+        for op in opciones_mezcladas:
+            if st.button(op, use_container_width=True):
+                verificar_intruso(op)
+                st.rerun()
+
+
+    # ==========================================
+    # PESTAÑA 3: QUIZ DE CERTIFICACIÓN
+    # ==========================================
+    with tab3:
+        st.header("📝 Quiz de Certificación")
+        st.markdown("Las interacciones a nivel atómico dictan la fisiología a nivel sistémico.")
+        
+        deshabilitar = st.session_state.d2_quiz_enviado
+
+        q1 = st.radio(
+            "1. La barrera hematoencefálica es rica en lípidos. ¿Qué tipo de fármacos la atraviesan con mayor facilidad mediante difusión simple?",
+            ["A) Fármacos con múltiples enlaces iónicos.", "B) Fármacos con enlaces covalentes apolares (lipofílicos).", "C) Fármacos con alta polaridad y carga neta fuerte."],
+            disabled=deshabilitar,
+            key="d2_q1"
+        )
+        
+        q2 = st.radio(
+            "2. En la estructura del agua (H₂O), la alta electronegatividad del oxígeno atrae fuertemente los electrones del hidrógeno. Esto genera un:",
+            ["A) Enlace covalente apolar que repele otras moléculas.", "B) Enlace covalente polar que genera densidades de carga parciales.", "C) Enlace iónico que cristaliza a temperatura ambiente."],
+            disabled=deshabilitar,
+            key="d2_q2"
+        )
+        
+        q3 = st.radio(
+            "3. En una solución de suero fisiológico intravenoso, el Sodio y el Cloro se encuentran:",
+            ["A) Compartiendo un par de electrones equitativamente.", "B) Unidos por un enlace covalente polar fuerte.", "C) Disociados como iones libres (Na⁺ y Cl⁻) tras romperse su enlace iónico."],
+            disabled=deshabilitar,
+            key="d2_q3"
+        )
+        
+        st.markdown("**4. Pregunta Analítica (Respuesta Numérica)**")
+        st.markdown("Un átomo de Cloro ($\chi = 3.16$) interactúa con uno de Carbono ($\chi = 2.55$).")
+        q4 = st.number_input(
+            "Calcula la Diferencia de Electronegatividad ($\Delta \chi$) exacta (Usa dos decimales):",
+            value=0.00, step=0.01, format="%.2f", disabled=deshabilitar, key="d2_q4"
+        )
+
+        if st.button("Enviar Respuestas y Guardar", type="primary", disabled=deshabilitar, use_container_width=True):
+            aciertos = 0
+            if q1.startswith("B"): aciertos += 1
+            if q2.startswith("B"): aciertos += 1
+            if q3.startswith("C"): aciertos += 1
+            if q4 == 0.61: aciertos += 1
+            
+            precision = (aciertos / 4) * 100
+            
+            metadata = {
+                "juego_score_final": st.session_state.d2_juego_score,
+                "juego_intentos_totales": st.session_state.d2_juego_intentos,
+                "quiz_respuestas": [q1[0], q2[0], q3[0], q4],
+                "enfoque_seleccionado": enfoque
+            }
+            
+            correo_alumno = st.session_state.get("usuario_correo", "estudiante_invitado@unam.mx")
+            
+            exito = guardar_registro_juego(
+                alumno_id=correo_alumno,
+                dia_modulo=2,
+                puntaje=st.session_state.d2_juego_score,
+                precision_pct=int(precision),
+                metadata_juego=metadata
+            )
+            
+            st.session_state.d2_quiz_enviado = True
+            
+            if exito:
+                st.success(f"¡Resultados guardados! Precisión: {precision}%")
+            else:
+                st.warning(f"Evaluación completada (Precisión: {precision}%). Módulo finalizado en modo local.")
+            
+            st.rerun()
