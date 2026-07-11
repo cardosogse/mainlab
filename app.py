@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import time
+import traceback
 import database as db
 from assets import cargar_estilos
 
@@ -15,7 +16,7 @@ class ControlEstadoGlobal:
             'auth': None, 'token_actual': None, 'procesando': False,
             'puntos_acumulados': 0, 'vidas': 3, 'tiempo_historico_min': 0,
             'tiempo_estudio_min': 0, 'inicio_sesion_unix': None, 'modulo_actual': "1",
-            'ultimo_token_generado': None  # Almacenamiento persistente en UI administrativa
+            'ultimo_token_generado': None
         }
         for clave, valor_defecto in esquema_estados.items():
             if clave not in st.session_state:
@@ -85,12 +86,17 @@ elif st.session_state['auth'] == 'admin':
     with tab_creacion:
         dias_vigencia = st.number_input("Días de vigencia activa:", min_value=1, value=30, key="admin_dias_input")
         if st.button("Generar Nueva Licencia", key="admin_btn_generar"):
-            token_nuevo = db.generar_token(dias_vigencia)
-            if token_nuevo: 
-                st.session_state['ultimo_token_generado'] = token_nuevo
-                st.success("🎉 ¡Licencia registrada de manera segura!")
-            else:
-                st.error("Error al inyectar la licencia en el almacenamiento.")
+            # ESCUDO DE PROTECCIÓN INTERNA CONTRA EL PÁNICO DE RERUNS
+            try:
+                token_nuevo = db.generar_token(dias_vigencia)
+                if token_nuevo: 
+                    st.session_state['ultimo_token_generado'] = token_nuevo
+                    st.success("🎉 ¡Licencia registrada de manera segura!")
+                else:
+                    st.error("Error: La función de base de datos devolvió un token vacío.")
+            except Exception as ex:
+                st.error(f"🚨 Error crítico al ejecutar la generación: {str(ex)}")
+                st.text(traceback.format_exc())
                 
         if st.session_state['ultimo_token_generado']:
             st.info("Copia el último token generado para el alumno:")
@@ -100,26 +106,31 @@ elif st.session_state['auth'] == 'admin':
                 st.rerun()
             
     with tab_monitoreo:
-        tabla_datos = db.listar_todos_los_tokens()
-        if tabla_datos:
-            dataframe_tokens = pd.DataFrame(tabla_datos)
-            st.dataframe(dataframe_tokens, use_container_width=True)
-            
-            st.markdown("---")
-            token_a_eliminar = st.selectbox(
-                "Selecciona una licencia para su purga física:", 
-                dataframe_tokens["Token"].tolist(),
-                key="admin_select_revocar"
-            )
-            if st.button("❌ DESTRUIR LICENCIA DEFINITIVAMENTE", use_container_width=True, key="admin_btn_revocar"):
-                db.eliminar_token(token_a_eliminar)
-                if st.session_state['ultimo_token_generado'] == token_a_eliminar:
-                    st.session_state['ultimo_token_generado'] = None
-                st.toast(f"Licencia {token_a_eliminar} revocada del servidor.", icon="🗑️")
-                time.sleep(0.3)
-                st.rerun()
-        else:
-            st.info("No existen licencias registradas en el clúster de datos.")
+        # PROTECCIÓN EN LA PESTAÑA DE LECTURA DE MATRIZ
+        try:
+            tabla_datos = db.listar_todos_los_tokens()
+            if tabla_datos:
+                dataframe_tokens = pd.DataFrame(tabla_datos)
+                st.dataframe(dataframe_tokens, use_container_width=True)
+                
+                st.markdown("---")
+                token_a_eliminar = st.selectbox(
+                    "Selecciona una licencia para su purga física:", 
+                    dataframe_tokens["Token"].tolist(),
+                    key="admin_select_revocar"
+                )
+                if st.button("❌ DESTRUIR LICENCIA DEFINITIVAMENTE", use_container_width=True, key="admin_btn_revocar"):
+                    db.eliminar_token(token_a_eliminar)
+                    if st.session_state['ultimo_token_generado'] == token_a_eliminar:
+                        st.session_state['ultimo_token_generado'] = None
+                    st.toast(f"Licencia {token_a_eliminar} revocada del servidor.", icon="🗑️")
+                    time.sleep(0.3)
+                    st.rerun()
+            else:
+                st.info("No existen licencias registradas en el clúster de datos.")
+        except Exception as ex:
+            st.error(f"🚨 Error crítico en la pestaña de monitoreo: {str(ex)}")
+            st.text(traceback.format_exc())
 
 elif st.session_state['auth'] == 'usuario':
     minutos_de_sesion = int((time.time() - st.session_state['inicio_sesion_unix']) / 60)
