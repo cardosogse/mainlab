@@ -15,9 +15,11 @@ def obtener_llave_secreta(seccion, llave):
 
 SUPABASE_URL = obtener_llave_secreta("supabase", "SUPABASE_URL")
 SUPABASE_KEY = obtener_llave_secreta("supabase", "SUPABASE_KEY")
-DB_NAME = obtener_llave_secreta("config", "DB_NAME") or "mainlab.db"
 
-# --- CAPA DE CONEXIÓN REST PURA A LA NUBE (LIBRE DE COMPONENTES ASÍNCRONOS) ---
+# CAMBIO DE MATRIZ: Forzamos la creación de un archivo nuevo y sano en el servidor
+DB_NAME = "mainlab_v3.db"
+
+# --- CAPA DE CONEXIÓN REST A LA NUBE ---
 def _supabase_rest_post(tabla: str, payload: dict):
     if not SUPABASE_URL or not SUPABASE_KEY: return
     try:
@@ -59,11 +61,10 @@ def _supabase_rest_delete(tabla: str, columna_filtro: str, valor_filtro: str):
     except Exception:
         pass
 
-# --- CONTROLADORES DE BASE DE DATOS LOCAL CON SOPORTE CONCURRENTE WAL ---
+# --- CONTROLADORES DE BASE DE DATOS LOCAL (MODO ESTÁNDAR SEGURO) ---
 def _ejecutar_sql_lectura(query: str, params: tuple = ()):
     try:
-        with sqlite3.connect(DB_NAME, timeout=15) as conn:
-            conn.execute("PRAGMA journal_mode=WAL;")  # Habilita lectura/escritura paralela
+        with sqlite3.connect(DB_NAME, timeout=10) as conn:
             c = conn.cursor()
             c.execute(query, params)
             return c.fetchall()
@@ -73,8 +74,7 @@ def _ejecutar_sql_lectura(query: str, params: tuple = ()):
 
 def _ejecutar_sql_escritura(query: str, params: tuple = ()):
     try:
-        with sqlite3.connect(DB_NAME, timeout=15) as conn:
-            conn.execute("PRAGMA journal_mode=WAL;")
+        with sqlite3.connect(DB_NAME, timeout=10) as conn:
             c = conn.cursor()
             c.execute(query, params)
             conn.commit()
@@ -84,28 +84,14 @@ def _ejecutar_sql_escritura(query: str, params: tuple = ()):
         return False
 
 def inicializar_db():
-    """Crea la estructura física e implementa el control de concurrencia WAL."""
+    """Crea la estructura física utilizando el modo de almacenamiento estándar compatible."""
     try:
-        with sqlite3.connect(DB_NAME, timeout=15) as conn:
-            conn.execute("PRAGMA journal_mode=WAL;")
+        with sqlite3.connect(DB_NAME, timeout=10) as conn:
             c = conn.cursor()
             c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso (
                 token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
                 score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT,
                 intentos_quiz INTEGER, tiempo_estudio_min INTEGER, errores_quiz INTEGER)''')
-            
-            c.execute("PRAGMA table_info(tokens_acceso)")
-            columnas_existentes = [col[1] for col in c.fetchall()]
-            
-            columnas_nuevas = {
-                "intentos_quiz": "INTEGER DEFAULT 0",
-                "tiempo_estudio_min": "INTEGER DEFAULT 0",
-                "errores_quiz": "INTEGER DEFAULT 0"
-            }
-            
-            for col_nombre, col_tipo in columnas_nuevas.items():
-                if col_nombre not in columnas_existentes:
-                    c.execute(f"ALTER TABLE tokens_acceso ADD COLUMN {col_nombre} {col_tipo}")
             conn.commit()
     except sqlite3.Error as e:
         st.error(f"Fallo al inicializar la matriz de datos: {e}")
@@ -144,7 +130,7 @@ def guardar_registro_juego(alumno_id: str, dia_modulo: int, puntaje: int, precis
     return True
 
 def generar_token(dias: int) -> str:
-    """Genera licencias de forma segura bajo entornos de alta concurrencia."""
+    """Genera licencias de forma lineal sin activar funciones de memoria mapeada."""
     token = f"ML-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
     
