@@ -41,25 +41,25 @@ if st.session_state['auth'] is None and "token" in st.query_params:
             st.query_params.clear()
             st.rerun()
 
+# El título principal se mantiene como bloque HTML aislado en la parte superior
 st.markdown(
     '<div class="logo-container"><h1 class="main-title">Main<span class="main-title-suffix">Lab</span></h1>'
     '<p class="main-subtitle">Bioquímica aplicada. Ciencia interactiva. Sin límites.</p></div>', 
     unsafe_allow_html=True
 )
 
-# --- PANEL DE LOGIN CON TIPOGRAFÍA RESPONSIVA CORREGIDA ---
+# --- PANEL DE ACCESO PURIFICADO (100% COMPATIBLE CON MÓVILES) ---
 if st.session_state['auth'] is None:
     
-    # Encabezado de Acceso Seguro (Evita recortes de texto en pantallas pequeñas)
-    st.markdown(
-        "<div style='text-align:center; margin-bottom: 15px; padding: 0 10px;'>"
-        "<h3 style='color:#ffffff; font-family:monospace; margin:0; font-size:calc(1.2rem + 0.5vw); "
-        "white-space:normal; word-wrap:break-word; line-height:1.3;'>🔑 ACCESO AL LABORATORIO</h3>"
-        "</div>", 
-        unsafe_allow_html=True
-    )
+    # SECCIÓN A: Formulario de Entrada Estándar
+    st.markdown("### 🔑 ACCESO AL LABORATORIO")
     
-    credencial = st.text_input("Introduce tu Licencia o Clave Maestra:", type="password", key="login_input_credencial")
+    credencial = st.text_input(
+        "Introduce tu Licencia o Clave Maestra:", 
+        type="password", 
+        key="login_input_credencial",
+        label_visibility="visible"
+    )
     
     if st.button("🚀 INICIAR INVESTIGACIÓN", use_container_width=True, key="login_btn_acceder"):
         credencial_limpia = credencial.strip()
@@ -80,17 +80,11 @@ if st.session_state['auth'] is None:
             else:
                 st.error("❌ Credencial inválida o vencida.")
     
+    # Separador estructural nativo
     st.markdown("---")
     
-    # Encabezado del Módulo de Gancho Abierto (Totalmente Adaptable)
-    st.markdown(
-        "<div style='border-left: 4px solid #00f2fe; padding-left: 15px; margin-bottom: 15px; "
-        "text-align:left; white-space:normal; word-wrap:break-word;'>"
-        "<h3 style='color:#00f2fe; font-family:monospace; margin:0; font-size:calc(1.2rem + 0.5vw); "
-        "line-height:1.3;'>🔬 ANALIZADOR ORGÁNICO EXPRÉS</h3>"
-        "</div>", 
-        unsafe_allow_html=True
-    )
+    # SECCIÓN B: Gancho Interactivo Abierto
+    st.markdown("### 🔬 ANALIZADOR ORGÁNICO EXPRÉS")
     st.caption("Prueba el potencial del laboratorio interactivo antes de ingresar tu licencia clínica:")
     
     grupo_test = st.selectbox(
@@ -181,7 +175,7 @@ elif st.session_state['auth'] == 'admin':
 # --- VISTA DEL ALUMNO ---
 elif st.session_state['auth'] == 'usuario':
     minutos_de_sesion = int((time.time() - st.session_state['inicio_sesion_unix']) / 60)
-    st.session_state['tiempo_estudio_min'] = st.session_state['tiempo_historico_min'] + minutos_de_sesion
+    st.session_state['tiempo_estudio_min'] = st.session_state['tiempo_historico_min'] + minutes_de_sesion
     
     st.markdown("<div class='dashboard-triage'>", unsafe_allow_html=True)
     c_tk, c_vd, c_pt, c_tm = st.columns(4)
