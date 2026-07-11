@@ -9,7 +9,8 @@ def app():
         "Día 3: Estructura del Agua y Fuerzas": {"modulo": "modulos.m1_dia3", "icono": "🧊"},
         "Día 4: Solubilidad y Micelas": {"modulo": "modulos.m1_dia4", "icono": "🧱"},
         "Día 5: pH y Amortiguadores": {"modulo": "modulos.m1_dia5", "icono": "⚖️"},
-        "Día 6: Fluidoterapia Clínica": {"modulo": "modulos.m1_dia6", "icono": "🩸"}
+        "Día 6: Fluidoterapia Clínica": {"modulo": "modulos.m1_dia6", "icono": "🩸"},
+        "Día 7: Grupos Funcionales y Estereoquímica": {"modulo": "modulos.m1_dia7", "icono": "🧬"}
     }
     
     st.sidebar.markdown("### 🗺️ Itinerario de Investigación")
@@ -25,7 +26,6 @@ def app():
     # --- CARGA BAJO DEMANDA (Lazy Loading & Dynamic Import) ---
     meta_modulo = configuracion_sesiones[seleccion_sesion]
     try:
-        # Importación dinámica del archivo de forma aislada
         modulo_instanciado = importlib.import_module(meta_modulo["modulo"])
         modulo_instanciado.app()
     except ModuleNotFoundError:
