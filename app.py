@@ -47,13 +47,14 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- PANEL DE LOGIN INMUNIZADO Y TOTALMENTE RESPONSIVO ---
+# --- PANEL DE LOGIN CON TIPOGRAFÍA RESPONSIVA CORREGIDA ---
 if st.session_state['auth'] is None:
     
-    # Encabezado del Bloque de Acceso (Perfectamente auto-contenido)
+    # Encabezado de Acceso Seguro (Evita recortes de texto en pantallas pequeñas)
     st.markdown(
-        "<div style='text-align:center; margin-bottom: 10px;'>"
-        "<h3 style='color:#ffffff; font-family:monospace; margin:0;'>🔑 ACCESO AL LABORATORIO</h3>"
+        "<div style='text-align:center; margin-bottom: 15px; padding: 0 10px;'>"
+        "<h3 style='color:#ffffff; font-family:monospace; margin:0; font-size:calc(1.2rem + 0.5vw); "
+        "white-space:normal; word-wrap:break-word; line-height:1.3;'>🔑 ACCESO AL LABORATORIO</h3>"
         "</div>", 
         unsafe_allow_html=True
     )
@@ -79,13 +80,14 @@ if st.session_state['auth'] is None:
             else:
                 st.error("❌ Credencial inválida o vencida.")
     
-    # Separador estético nativo lineal libre de errores HTML
     st.markdown("---")
     
-    # Encabezado del Bloque de Gancho Teaser (Perfectamente auto-contenido)
+    # Encabezado del Módulo de Gancho Abierto (Totalmente Adaptable)
     st.markdown(
-        "<div style='border-left: 4px solid #00f2fe; padding-left: 15px; margin-bottom: 15px; text-align: left;'>"
-        "<h3 style='color:#00f2fe; font-family:monospace; margin:0;'>🔬 ANALIZADOR ORGÁNICO EXPRÉS</h3>"
+        "<div style='border-left: 4px solid #00f2fe; padding-left: 15px; margin-bottom: 15px; "
+        "text-align:left; white-space:normal; word-wrap:break-word;'>"
+        "<h3 style='color:#00f2fe; font-family:monospace; margin:0; font-size:calc(1.2rem + 0.5vw); "
+        "line-height:1.3;'>🔬 ANALIZADOR ORGÁNICO EXPRÉS</h3>"
         "</div>", 
         unsafe_allow_html=True
     )
