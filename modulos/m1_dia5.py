@@ -33,7 +33,6 @@ def inicializar_estado_dia5():
         st.session_state.d5_quiz_enviado = False
     if "d5_caso_actual" not in st.session_state:
         st.session_state.d5_caso_actual = random.choice(CASOS_CLINICOS_pH)
-        # --- BLINDAJE ANTI-BUG: Fijar el orden de los botones en sesión para evitar inversiones al hacer clic ---
         caso = st.session_state.d5_caso_actual
         opciones = [
             {"texto": caso["accion_correcta"], "es_correcta": True},
@@ -46,7 +45,7 @@ def inicializar_estado_dia5():
 
 def app():
     inicializar_estado_dia5()
-    token_alumno = st.session_state.get("token_actual", "DEMO")[cite: 20]
+    token_alumno = st.session_state.get("token_actual", "DEMO")
     
     enfoque = st.radio(
         "🔬 Ajustar la Sensibilidad del Transductor:", 
@@ -59,7 +58,6 @@ def app():
 
     with tab1:
         st.markdown("### Fundamentos: La Autoionización del Agua y el Origen del pH")
-        
         st.markdown(
             """
             Para comprender el pH, primero debemos entender que el agua pura no es una masa inerte; es un electrolito débil que sufre 
@@ -108,8 +106,6 @@ def app():
         c_intentos.metric("Casos Estabilizados", st.session_state.d5_juego_intentos)
         
         caso = st.session_state.d5_caso_actual
-        
-        # Selección del texto explicativo según perfil
         if enfoque == "🐾 Veterinaria": cuadro_texto = caso["cuadro_vet"]
         elif enfoque == "🩺 Medicina": cuadro_texto = caso["cuadro_med"]
         else: cuadro_texto = caso["cuadro_bio"]
@@ -126,7 +122,6 @@ def app():
                 st.session_state.d5_juego_score = max(0, st.session_state.d5_juego_score - 10)
                 st.toast("Fallo en la compensación. Agravamiento crítico del cuadro.", icon="❌")
             
-            # Resetear para la siguiente ronda recreando los botones fijados
             st.session_state.d5_caso_actual = random.choice(CASOS_CLINICOS_pH)
             nuevo_caso = st.session_state.d5_caso_actual
             nuevas_opciones = [
@@ -136,7 +131,6 @@ def app():
             random.shuffle(nuevas_opciones)
             st.session_state.d5_opciones_fijadas = nuevas_opciones
 
-        # --- RENDERIZADO BLINDADO CON EL ESTADO DE SESIÓN ---
         col1, col2 = st.columns(2)
         opc1 = st.session_state.d5_opciones_fijadas[0]
         opc2 = st.session_state.d5_opciones_fijadas[1]
@@ -156,7 +150,6 @@ def app():
         q2 = st.radio("2. ¿Cuál es el sistema amortiguador fundamental encargado de contener las variaciones de pH frente a ácidos fijos de origen metabólico en el espacio extracelular?", ["A) El sistema tamponador Bicarbonato / Ácido Carbónico ($HCO_3^- / H_2CO_3$).", "B) El sistema intracelular del Fosfato dibásico / monobásico.", "C) El amortiguador lipídico hidrofóbico de membrana."], disabled=bloqueado, key="d5_q2")
         q3 = st.radio("3. De acuerdo con los principios de la ecuación de Henderson-Hasselbalch, ¿cuándo alcanza un sistema amortiguador su máxima capacidad de mitigación química?", ["A) Cuando el solvente acuoso se disocia y se evapora por completo de la solución.", "B) Cuando el pH del medio es exactamente equivalente al valor de su constante de disociación ($pKa$).", "C) Cuando la base conjugada supera a la especie ácida en una relación estricta de 50:1."], disabled=bloqueado, key="d5_q3")
         
-        # Reactivo dinámico en su validación según perfil (Valor promedio inferior homeostático)
         etiqueta_q4 = "4. Escribe el límite inferior exacto del pH fisiológico de la sangre arterial en mamíferos domésticos antes de declararse Acidemia clínica:" if enfoque == "🐾 Veterinaria" else "4. Escribe el límite inferior exacto del pH fisiológico normal de la sangre arterial humana en condiciones estándar:"
         q4 = st.number_input(etiqueta_q4, value=7.00, step=0.01, format="%.2f", disabled=bloqueado, key="d5_q4")
 
