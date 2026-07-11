@@ -3,6 +3,7 @@ import datetime
 from datetime import timedelta
 import random
 import string
+import threading
 import streamlit as st
 from supabase import create_client
 
@@ -64,6 +65,30 @@ def validar_token(token: str):
         st.error(f"Fallo crítico en capa de datos local: {str(e)}")
     return False, "invalid"
 
+# --- FUNCIONES INTERNAS PARA EJECUCIÓN SEGURA EN HILOS DE FONDO ---
+def _insertar_supabase_bg(payload):
+    if supabase:
+        try:
+            supabase.table("tokens_acceso").insert(payload).execute()
+        except Exception:
+            pass
+
+def _eliminar_supabase_bg(token):
+    if supabase:
+        try:
+            supabase.table("tokens_acceso").delete().eq("token", token).execute()
+        except Exception:
+            pass
+
+def _sincronizar_supabase_bg(token, puntos, mod, vidas, tiempo_min):
+    if supabase:
+        try:
+            supabase.table("tokens_acceso").update({
+                "score_puntos": int(puntos), "modulo_actual": str(mod), "vidas": int(vidas), "tiempo_estudio_min": int(tiempo_min)
+            }).eq("token", token).execute()
+        except Exception:
+            pass
+
 def sincronizar_progreso_db(token: str, puntos: int, mod: str, vidas: int, tiempo_min: int):
     try:
         with sqlite3.connect(DB_NAME) as conn:
@@ -72,13 +97,12 @@ def sincronizar_progreso_db(token: str, puntos: int, mod: str, vidas: int, tiemp
                       (int(puntos), str(mod), int(vidas), int(tiempo_min), token))
             conn.commit()
             
-        if supabase:
-            try:
-                supabase.table("tokens_acceso").update({
-                    "score_puntos": int(puntos), "modulo_actual": str(mod), "vidas": int(vidas), "tiempo_estudio_min": int(tiempo_min)
-                }).eq("token", token).execute()
-            except Exception:
-                pass
+        # Desacoplamiento asíncrono seguro
+        threading.Thread(
+            target=_sincronizar_supabase_bg, 
+            args=(token, puntos, mod, vidas, tiempo_min), 
+            daemon=True
+        ).start()
     except sqlite3.Error:
         pass
 
@@ -89,20 +113,23 @@ def guardar_registro_juego(alumno_id: str, dia_modulo: int, puntaje: int, precis
         "precision_pct": int(precision_pct), "metadata_juego": metadata_juego
     }
     try:
-        supabase.table("historial_juegos").insert(payload).execute()
+        # Los registros históricos corren en un hilo secundario rápido
+        threading.Thread(
+            target=lambda: supabase.table("historial_juegos").insert(payload).execute(),
+            daemon=True
+        ).start()
         return True
     except Exception:
         return False
 
 def generar_token(dias: int) -> str:
-    """Genera una licencia utilizando mapeo explícito de columnas para evitar conflictos."""
+    """Genera una licencia mapeada explícitamente y aislada del hilo de red de Streamlit."""
     token = f"ML-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
     
     try:
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
-            # SE DEFINE LA ESTRUCTURA EXPLÍCITA DE COLUMNAS
             c.execute("""
                 INSERT INTO tokens_acceso 
                 (token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, tiempo_estudio_min, errores_quiz) 
@@ -113,16 +140,13 @@ def generar_token(dias: int) -> str:
         st.error(f"Error al generar licencia en almacenamiento local: {str(e)}")
         return ""
         
-    if supabase:
-        try:
-            payload_remoto = {
-                "token": token, "en_uso": 0, "fecha_expiracion": fecha_exp, 
-                "score_puntos": 0, "vidas": 3, "modulo_actual": "1", 
-                "intentos_quiz": 0, "tiempo_estudio_min": 0, "errores_quiz": 0
-            }
-            supabase.table("tokens_acceso").insert(payload_remoto).execute()
-        except Exception:
-            pass
+    # Inyección remota aislada en un hilo Daemon independiente para evitar caídas de entorno
+    payload_remoto = {
+        "token": token, "en_uso": 0, "fecha_expiracion": fecha_exp, 
+        "score_puntos": 0, "vidas": 3, "modulo_actual": "1", 
+        "intentos_quiz": 0, "tiempo_estudio_min": 0, "errores_quiz": 0
+    }
+    threading.Thread(target=_insertar_supabase_bg, args=(payload_remoto,), daemon=True).start()
             
     return token
 
@@ -143,10 +167,8 @@ def eliminar_token(token: str):
             c = conn.cursor()
             c.execute("DELETE FROM tokens_acceso WHERE token = ?", (token,))
             conn.commit()
-        if supabase:
-            try:
-                supabase.table("tokens_acceso").delete().eq("token", token).execute()
-            except Exception:
-                pass
+        
+        # Eliminación remota segura
+        threading.Thread(target=_eliminar_supabase_bg, args=(token,), daemon=True).start()
     except sqlite3.Error as e:
         st.error(f"No se pudo eliminar la licencia de la matriz: {str(e)}")
