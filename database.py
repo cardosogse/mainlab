@@ -5,7 +5,6 @@ import random
 import string
 import requests
 import streamlit as st
-from supabase import create_client
 
 def obtener_llave_secreta(seccion, llave):
     if seccion in st.secrets and llave in st.secrets[seccion]:
@@ -18,12 +17,7 @@ SUPABASE_URL = obtener_llave_secreta("supabase", "SUPABASE_URL")
 SUPABASE_KEY = obtener_llave_secreta("supabase", "SUPABASE_KEY")
 DB_NAME = obtener_llave_secreta("config", "DB_NAME") or "mainlab.db"
 
-try:
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL else None
-except Exception:
-    supabase = None
-
-# --- CONECTORES ULTRA-ESTABLES DE CAPA REST (ANTI-CRASH) ---
+# --- CAPA DE CONEXIÓN REST PURA A LA NUBE (LIBRE DE COMPONENTES ASÍNCRONOS) ---
 def _supabase_rest_post(tabla: str, payload: dict):
     if not SUPABASE_URL or not SUPABASE_KEY: return
     try:
@@ -34,7 +28,7 @@ def _supabase_rest_post(tabla: str, payload: dict):
             "Content-Type": "application/json",
             "Prefer": "return=minimal"
         }
-        requests.post(url, headers=headers, json=payload, timeout=6)
+        requests.post(url, headers=headers, json=payload, timeout=5)
     except Exception:
         pass
 
@@ -48,7 +42,7 @@ def _supabase_rest_patch(tabla: str, payload: dict, columna_filtro: str, valor_f
             "Content-Type": "application/json",
             "Prefer": "return=minimal"
         }
-        requests.patch(url, headers=headers, json=payload, timeout=6)
+        requests.patch(url, headers=headers, json=payload, timeout=5)
     except Exception:
         pass
 
@@ -61,62 +55,78 @@ def _supabase_rest_delete(tabla: str, columna_filtro: str, valor_filtro: str):
             "Authorization": f"Bearer {SUPABASE_KEY}",
             "Prefer": "return=minimal"
         }
-        requests.delete(url, headers=headers, timeout=6)
+        requests.delete(url, headers=headers, timeout=5)
     except Exception:
         pass
 
-# --- CONTROL DE INFRAESTRUCTURA LOCAL ---
+# --- CONTROLADORES DE BASE DE DATOS LOCAL CON SOPORTE CONCURRENTE WAL ---
+def _ejecutar_sql_lectura(query: str, params: tuple = ()):
+    try:
+        with sqlite3.connect(DB_NAME, timeout=15) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")  # Habilita lectura/escritura paralela
+            c = conn.cursor()
+            c.execute(query, params)
+            return c.fetchall()
+    except sqlite3.Error as e:
+        st.error(f"Error de lectura en base de datos local: {e}")
+        return []
+
+def _ejecutar_sql_escritura(query: str, params: tuple = ()):
+    try:
+        with sqlite3.connect(DB_NAME, timeout=15) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            c = conn.cursor()
+            c.execute(query, params)
+            conn.commit()
+            return True
+    except sqlite3.Error as e:
+        st.error(f"Error de escritura en base de datos local: {e}")
+        return False
+
 def inicializar_db():
-    """Garantiza la creación y migración progresiva de la base de datos en disco."""
-    with sqlite3.connect(DB_NAME) as conn:
-        c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso (
-            token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
-            score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT,
-            intentos_quiz INTEGER, tiempo_estudio_min INTEGER, errores_quiz INTEGER)''')
-        
-        c.execute("PRAGMA table_info(tokens_acceso)")
-        columnas_existentes = [col[1] for col in c.fetchall()]
-        
-        columnas_nuevas = {
-            "intentos_quiz": "INTEGER DEFAULT 0",
-            "tiempo_estudio_min": "INTEGER DEFAULT 0",
-            "errores_quiz": "INTEGER DEFAULT 0"
-        }
-        
-        for col_nombre, col_tipo in columnas_nuevas.items():
-            if col_nombre not in columnas_existentes:
-                c.execute(f"ALTER TABLE tokens_acceso ADD COLUMN {col_nombre} {col_tipo}")
-        conn.commit()
+    """Crea la estructura física e implementa el control de concurrencia WAL."""
+    try:
+        with sqlite3.connect(DB_NAME, timeout=15) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            c = conn.cursor()
+            c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso (
+                token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
+                score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT,
+                intentos_quiz INTEGER, tiempo_estudio_min INTEGER, errores_quiz INTEGER)''')
+            
+            c.execute("PRAGMA table_info(tokens_acceso)")
+            columnas_existentes = [col[1] for col in c.fetchall()]
+            
+            columnas_nuevas = {
+                "intentos_quiz": "INTEGER DEFAULT 0",
+                "tiempo_estudio_min": "INTEGER DEFAULT 0",
+                "errores_quiz": "INTEGER DEFAULT 0"
+            }
+            
+            for col_nombre, col_tipo in columnas_nuevas.items():
+                if col_nombre not in columnas_existentes:
+                    c.execute(f"ALTER TABLE tokens_acceso ADD COLUMN {col_nombre} {col_tipo}")
+            conn.commit()
+    except sqlite3.Error as e:
+        st.error(f"Fallo al inicializar la matriz de datos: {e}")
 
 def obtener_password_admin():
     return obtener_llave_secreta("config", "ADMIN_PASSWORD") or "ADMIN123"
 
 def validar_token(token: str):
-    try:
-        with sqlite3.connect(DB_NAME) as conn:
-            c = conn.cursor()
-            c.execute("SELECT score_puntos, vidas, modulo_actual, errores_quiz, tiempo_estudio_min, fecha_expiracion FROM tokens_acceso WHERE token = ?", (token,))
-            res = c.fetchone()
-            
-        if res:
-            score, vidas, modulo, errores, tiempo_min, fecha_exp = res
-            if datetime.date.today().strftime("%Y-%m-%d") > fecha_exp:
-                return False, "expired"
-            return True, {"puntos": score, "vidas": vidas, "modulo": modulo, "errores": errores, "tiempo": tiempo_min}
-    except sqlite3.Error as e:
-        st.error(f"Fallo crítico en capa de datos local: {str(e)}")
+    query = "SELECT score_puntos, vidas, modulo_actual, errores_quiz, tiempo_estudio_min, fecha_expiracion FROM tokens_acceso WHERE token = ?"
+    res = _ejecutar_sql_lectura(query, (token,))
+    if res:
+        score, vidas, modulo, errores, tiempo_min, fecha_exp = res[0]
+        if datetime.date.today().strftime("%Y-%m-%d") > fecha_exp:
+            return False, "expired"
+        return True, {"puntos": score, "vidas": vidas, "modulo": modulo, "errores": errores, "tiempo": tiempo_min}
     return False, "invalid"
 
 def sincronizar_progreso_db(token: str, puntos: int, mod: str, vidas: int, tiempo_min: int):
-    try:
-        with sqlite3.connect(DB_NAME) as conn:
-            c = conn.cursor()
-            c.execute("UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ?, vidas = ?, tiempo_estudio_min = ? WHERE token = ?", 
-                      (int(puntos), str(mod), int(vidas), int(tiempo_min), token))
-            conn.commit()
-            
-        # Actualización remota HTTP pura libre de asyncio
+    query = "UPDATE tokens_acceso SET score_puntos = ?, modulo_actual = ?, vidas = ?, tiempo_estudio_min = ? WHERE token = ?"
+    exito = _ejecutar_sql_escritura(query, (int(puntos), str(mod), int(vidas), int(tiempo_min), token))
+    if exito:
         payload_update = {
             "score_puntos": int(puntos), 
             "modulo_actual": str(mod), 
@@ -124,8 +134,6 @@ def sincronizar_progreso_db(token: str, puntos: int, mod: str, vidas: int, tiemp
             "tiempo_estudio_min": int(tiempo_min)
         }
         _supabase_rest_patch("tokens_acceso", payload_update, "token", token)
-    except sqlite3.Error:
-        pass
 
 def guardar_registro_juego(alumno_id: str, dia_modulo: int, puntaje: int, precision_pct: int, metadata_juego: dict):
     payload = {
@@ -136,51 +144,35 @@ def guardar_registro_juego(alumno_id: str, dia_modulo: int, puntaje: int, precis
     return True
 
 def generar_token(dias: int) -> str:
-    """Genera una licencia localmente y la envía a la nube mediante HTTP síncrono seguro."""
+    """Genera licencias de forma segura bajo entornos de alta concurrencia."""
     token = f"ML-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
     
-    try:
-        with sqlite3.connect(DB_NAME) as conn:
-            c = conn.cursor()
-            c.execute("""
-                INSERT INTO tokens_acceso 
-                (token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, tiempo_estudio_min, errores_quiz) 
-                VALUES (?, 0, ?, 0, 3, '1', 0, 0, 0)
-            """, (token, fecha_exp))
-            conn.commit()
-    except sqlite3.Error as e:
-        st.error(f"Error al generar licencia en almacenamiento local: {str(e)}")
+    query = """
+        INSERT INTO tokens_acceso 
+        (token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, tiempo_estudio_min, errores_quiz) 
+        VALUES (?, 0, ?, 0, 3, '1', 0, 0, 0)
+    """
+    exito = _ejecutar_sql_escritura(query, (token, fecha_exp))
+    if not exito:
         return ""
         
-    # Registro en la nube libre de conflictos de hilos
     payload_remoto = {
         "token": token, "en_uso": 0, "fecha_expiracion": fecha_exp, 
         "score_puntos": 0, "vidas": 3, "modulo_actual": "1", 
         "intentos_quiz": 0, "tiempo_estudio_min": 0, "errores_quiz": 0
     }
     _supabase_rest_post("tokens_acceso", payload_remoto)
-            
     return token
 
 def listar_todos_los_tokens():
-    try:
-        with sqlite3.connect(DB_NAME) as conn:
-            c = conn.cursor()
-            c.execute("SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, intentos_quiz, tiempo_estudio_min, errores_quiz FROM tokens_acceso")
-            filas = c.fetchall()
-        claves = ["Token", "Activo", "Expiracion", "Puntos", "Vidas", "Intentos Quiz", "Tiempo Estudio (min)", "Errores Quiz"]
-        return [dict(zip(claves, f)) for f in filas]
-    except sqlite3.Error:
-        return []
+    query = "SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, intentos_quiz, tiempo_estudio_min, errores_quiz FROM tokens_acceso"
+    filas = _ejecutar_sql_lectura(query)
+    claves = ["Token", "Activo", "Expiracion", "Puntos", "Vidas", "Intentos Quiz", "Tiempo Estudio (min)", "Errores Quiz"]
+    return [dict(zip(claves, f)) for f in filas]
 
 def eliminar_token(token: str):
-    try:
-        with sqlite3.connect(DB_NAME) as conn:
-            c = conn.cursor()
-            c.execute("DELETE FROM tokens_acceso WHERE token = ?", (token,))
-            conn.commit()
-        
+    query = "DELETE FROM tokens_acceso WHERE token = ?"
+    exito = _ejecutar_sql_escritura(query, (token,))
+    if exito:
         _supabase_rest_delete("tokens_acceso", "token", token)
-    except sqlite3.Error as e:
-        st.error(f"No se pudo eliminar la licencia de la matriz: {str(e)}")
