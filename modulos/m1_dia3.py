@@ -1,155 +1,183 @@
 import streamlit as st
-import database as db  # Importación unificada por consistencia
-from assets import ELEMENTOS, generar_svg_enlace
+import random
+from database import guardar_registro_juego
 
-def mostrar_dia3():
-    """
-    Renderiza las lecciones e interacciones del Día 3 utilizando un diseño modular de pestañas.
-    Optimiza el flujo del reactor químico y expande la calculadora de soluciones con fórmulas formales.
-    """
-    st.subheader("Día 3: El Reactor de Fusión Atómica e Interacciones Moleculares")
-    st.write("Estudia cómo la disparidad en la tracción de electrones determina la estabilidad de las uniones y la solvatación biológica celular.")
+# Base de datos de escenarios para el juego "Fuerzas Cruzadas"
+ESCENARIOS_D3 = [
+    {"caso": "Unión intermolecular entre dos moléculas de agua (H₂O - H₂O).", "fuerza": "Puentes de Hidrógeno", "razon": "El H parcialmente positivo es atraído por el par libre del Oxígeno."},
+    {"caso": "Colas de ácidos grasos interactuando en el centro de la membrana celular.", "fuerza": "Van der Waals", "razon": "Son regiones apolares que se mantienen unidas por fuerzas de dispersión débiles."},
+    {"caso": "Un ión de Sodio (Na⁺) rodeado por moléculas de agua en el plasma.", "fuerza": "Ion-Dipolo", "razon": "La carga total del ión atrae a los polos parciales opuestos del agua."},
+    {"caso": "Unión entre las bases nitrogenadas (Adenina y Timina) en la doble hélice de ADN.", "fuerza": "Puentes de Hidrógeno", "razon": "Otorgan estabilidad temporal que permite la replicación del ADN."},
+    {"caso": "Interacción entre moléculas de oxígeno (O₂) disueltas en la sangre antes de unirse a la hemoglobina.", "fuerza": "Van der Waals", "razon": "El O₂ es apolar, su interacción es débil y momentánea."}
+]
+
+def inicializar_estado():
+    """Blindaje de variables de sesión para el Día 3."""
+    if "d3_juego_score" not in st.session_state:
+        st.session_state.d3_juego_score = 0
+    if "d3_juego_intentos" not in st.session_state:
+        st.session_state.d3_juego_intentos = 0
+    if "d3_quiz_enviado" not in st.session_state:
+        st.session_state.d3_quiz_enviado = False
+    if "d3_escenario_actual" not in st.session_state:
+        st.session_state.d3_escenario_actual = random.choice(ESCENARIOS_D3)
+
+def app():
+    st.title("🧊 Día 3: Fuerzas y Red del Agua")
+    st.markdown("Los enlaces covalentes construyen la molécula, pero son las fuerzas intermoleculares las que construyen la vida.")
     
-    # Segmentación por pestañas para optimizar la navegación móvil
-    tab_reactor, tab_calculadora = st.tabs([
-        "🧬 Reactor de Enlaces Químicos", 
-        "🧮 Concentración y Soluciones Molares"
-    ])
-    
-    # Diccionario maestro de electronegatividades (Escala de Pauling)
-    escala_pauling = {
-        "Oxígeno (O)": 3.44, 
-        "Hidrógeno (H)": 2.20, 
-        "Carbono (C)": 2.55, 
-        "Sodio (Na)": 0.93, 
-        "Cloro (Cl)": 3.16, 
-        "Nitrógeno (N)": 3.04
-    }
+    inicializar_estado()
+
+    # Selector de Enfoque Clínico
+    enfoque = st.radio("Selecciona tu enfoque de análisis:", ["🐾 Veterinaria", "🩺 Medicina", "🧬 Biología"], horizontal=True)
+
+    tab1, tab2, tab3 = st.tabs(["🔬 Red Térmica del Agua", "🎮 Juego: Fuerzas Cruzadas", "📝 Quiz de Certificación"])
 
     # ==========================================
-    # PESTAÑA 1: REACTOR DE ENLACES QUÍMICOS
+    # PESTAÑA 1: TEORÍA Y SIMULADOR
     # ==========================================
-    with tab_reactor:
-        st.markdown("### 🧬 Reactor de Fusión de Enlaces")
-        st.write(
-            "Selecciona dos átomos para colisionar sus capas de valencia. El sistema calculará la diferencia de electronegatividad "
-            "$$\Delta\chi = |\chi_A - \chi_B|$$ para predecir el tipo de enlace molecular resultante y su comportamiento en entornos citoplasmáticos."
+    with tab1:
+        st.header("Fundamentos: El Dipolo y sus Fuerzas")
+        st.markdown(
+            "Debido a que el agua es un **dipolo** (tiene un polo negativo en el oxígeno y polos positivos en los hidrógenos), "
+            "actúa como un imán diminuto. Esta asimetría da lugar a la fuerza intermolecular biológica por excelencia:"
         )
         
-        with st.container(border=True):
-            col_controles, col_resultado = st.columns(2)
-            
-            with col_controles:
-                atomo_a = st.selectbox("Selecciona el Átomo Central (A):", list(escala_pauling.keys()), key="sb_atomo_a")
-                atomo_b = st.selectbox("Selecciona el Átomo de Reacción (B):", list(escala_pauling.keys()), key="sb_atomo_b")
-                
-                # Botón de colisión protegido contra ejecución paralela descontrolada
-                btn_fusionar = st.button(
-                    "💥 Colisionar Capas de Valencia", 
-                    use_container_width=True,
-                    disabled=st.session_state.get('procesando', False)
-                )
-            
-            with col_resultado:
-                # Mantener el estado visual del reactor de forma limpia
-                if btn_fusionar:
-                    st.session_state['procesando'] = True
-                    diff = abs(escala_pauling[atomo_a] - escala_pauling[atomo_b])
-                    st.metric("Diferencia de Electronegatividad ($\Delta\chi$)", f"{diff:.2f}")
-                    
-                    # Extracción y limpieza segura de símbolos químicos para el generador gráfico SVG
-                    sym_a = atomo_a.split(" ")[1].replace("(", "").replace(")", "")
-                    sym_b = atomo_b.split(" ")[1].replace("(", "").replace(")", "")
-                    
-                    color_a = ELEMENTOS.get(atomo_a, {"color": "#00e5ff"})["color"]
-                    color_b = ELEMENTOS.get(atomo_b, {"color": "#ff5252"})["color"]
-                    
-                    # Renderizado seguro del componente HTML del enlace químico
-                    try:
-                        svg_render = generar_svg_enlace(sym_a, escala_pauling[atomo_a], color_a, sym_b, escala_pauling[atomo_b], color_b)
-                        st.components.v1.html(svg_render, height=140, scrolling=False)
-                    except Exception:
-                        st.caption("Diagrama de orbitales moleculares no disponible temporalmente.")
-                    
-                    # Clasificación pedagógica estricta basada en el gradiente de Pauling
-                    if diff < 0.4:
-                        st.success("🔬 **Enlace Covalente No Polar (Apolar)**")
-                        st.markdown(
-                            "> **Importancia Biomédica:** Existe una distribución equitativa de la densidad electrónica. "
-                            "Los libros de texto clásicos de bioquímica demuestran que esta simetría molecular origina las interacciones "
-                            "hidrofóbicas fundamentales para estabilizar las bicapas lipídicas de las membranas celulares."
-                        )
-                    elif 0.4 <= diff <= 1.7:
-                        st.warning("🌊 **Enlace Covalente Polar**")
-                        st.markdown(
-                            "> **Importancia Biomédica:** Se genera un dipolo permanente debido a la atracción asimétrica de electrones. "
-                            "Este fenómeno induce la alta constante dieléctrica del agua ($78.5$), permitiéndole interponerse y romper "
-                            "las redes cristalinas de los compuestos salinos para solvatarlos."
-                        )
-                    else:
-                        st.error("⚡ **Enlace Iónico (Atracción Electrostática)**")
-                        st.markdown(
-                            "> **Importancia Biomédica:** Ocurre una transferencia neta de electrones de un átomo a otro. "
-                            "Genera uniones altamente electrostáticas que se disocian de inmediato en iones libres (electrolitos) "
-                            "al entrar en contacto con las soluciones acuosas citoplasmáticas hídricas."
-                        )
-                    st.session_state['procesando'] = False
-                else:
-                    st.info("Configura los átomos y presiona el botón para iniciar la colisión cuántica de los orbitales.")
+        st.info("**Puente de Hidrógeno:** Interacción electrostática entre el H (δ+) de una molécula y el par de electrones libres de O, N o F de otra. "
+                "Aunque es 20 veces más débil que un enlace covalente, su multiplicidad otorga al agua su alta tensión superficial y calor específico.")
+
+        st.markdown("---")
+        st.subheader("🔬 Simulador Térmico: Densidad y Puentes de H.")
+        st.markdown("Desliza la temperatura para observar el efecto de la energía cinética sobre los puentes de hidrógeno.")
+
+        temp = st.slider("Temperatura (°C)", min_value=-10, max_value=120, value=25)
+
+        # Lógica del motor térmico y CSS dinámico
+        if temp < 0:
+            estado = "Sólido (Hielo)"
+            explicacion = "Máxima estructura. Los puentes de hidrógeno forman una red hexagonal rígida. **El agua se expande y su densidad disminuye**, por eso el hielo flota."
+            color = "#a0c4ff"
+            css_layout = "display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 20px; justify-items: center;"
+        elif temp < 100:
+            estado = "Líquido (Agua)"
+            explicacion = "Los puentes se rompen y forman continuamente. Las moléculas se agrupan estrechamente. **Estado de máxima densidad (a 4°C)**."
+            color = "#4facfe"
+            css_layout = "display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; padding: 20px;"
+        else:
+            estado = "Gas (Vapor)"
+            explicacion = "La energía cinética vence a los puentes de hidrógeno. Las moléculas se separan completamente interactuando muy poco."
+            color = "#e5e5e5"
+            css_layout = "display: flex; flex-wrap: wrap; gap: 40px; justify-content: space-around; padding: 50px;"
+
+        st.success(f"**Estado Físico:** {estado} | **Dinámica:** {explicacion}")
+
+        # Renderizado Visual CSS Ligero
+        molecula_html = f"<div style='width: 30px; height: 30px; background-color: {color}; border-radius: 50%; box-shadow: inset -3px -3px 5px rgba(0,0,0,0.2);'></div>"
+        matriz = molecula_html * 16 # 16 moléculas de agua
+        
+        visualizador_html = f"<div style='background-color: #f8f9fa; border-radius: 10px; {css_layout}'>{matriz}</div>"
+        st.markdown(visualizador_html, unsafe_allow_html=True)
+
 
     # ==========================================
-    # PESTAÑA 2: CALCULADORA DE CONCENTRACIÓN MOLAR
+    # PESTAÑA 2: JUEGO - FUERZAS CRUZADAS
     # ==========================================
-    with tab_calculadora:
-        st.markdown("### 🗮️ Calculadora de Concentración Molar")
-        st.write(
-            "La molaridad ($M$) expresa la cantidad de moles de soluto disueltos por cada litro de solución. "
-            "Se calcula matemáticamente aplicando la relación fundamental:"
-        )
-        st.latex(r"M = \frac{n}{V} = \frac{\left(\frac{m}{PM}\right)}{V}")
+    with tab2:
+        st.header("🎮 Fuerzas Cruzadas")
+        st.markdown("Clasifica rápidamente la interacción intermolecular descrita en el caso clínico/biológico.")
         
-        with st.container(border=True):
-            c1, c2 = st.columns(2)
+        st.metric("Puntaje Acumulado", st.session_state.d3_juego_score)
+        st.markdown("---")
+        
+        escenario = st.session_state.d3_escenario_actual
+        
+        st.subheader("Caso de Estudio:")
+        st.info(f"**{escenario['caso']}**")
+        
+        def verificar_fuerza(seleccion):
+            st.session_state.d3_juego_intentos += 1
+            if seleccion == escenario["fuerza"]:
+                st.session_state.d3_juego_score += 10
+                st.toast(f"¡Correcto! {escenario['razon']}", icon="✅")
+                st.session_state.d3_escenario_actual = random.choice(ESCENARIOS_D3)
+            else:
+                st.session_state.d3_juego_score -= 5
+                st.toast("Interacción incorrecta. Revisa las polaridades.", icon="❌")
+
+        col1, col2, col3 = st.columns(3)
+        if col1.button("Puentes de Hidrógeno", use_container_width=True): verificar_fuerza("Puentes de Hidrógeno"); st.rerun()
+        if col2.button("Van der Waals", use_container_width=True): verificar_fuerza("Van der Waals"); st.rerun()
+        if col3.button("Ion-Dipolo", use_container_width=True): verificar_fuerza("Ion-Dipolo"); st.rerun()
+
+
+    # ==========================================
+    # PESTAÑA 3: QUIZ DE CERTIFICACIÓN
+    # ==========================================
+    with tab3:
+        st.header("📝 Quiz de Certificación")
+        st.markdown("Aplica la biofísica del agua a la patología y la fisiología.")
+        
+        deshabilitar = st.session_state.d3_quiz_enviado
+
+        q1 = st.radio(
+            "1. En neonatología, el surfactante pulmonar es vital porque reduce la tensión superficial en los alvéolos. ¿Qué fuerza intermolecular rompe el surfactante para evitar el colapso alveolar?",
+            ["A) Fuerzas de dispersión de Van der Waals entre los gases.", "B) Puentes de hidrógeno entre las moléculas de agua alveolares.", "C) Enlaces iónicos del epitelio pulmonar."],
+            disabled=deshabilitar,
+            key="d3_q1"
+        )
+        
+        q2 = st.radio(
+            "2. ¿Por qué la congelación no controlada (congelamiento tisular en invierno) causa necrosis celular por ruptura de la membrana?",
+            ["A) Porque el agua se comprime al enfriarse, encogiendo la célula.", "B) Porque la baja temperatura desnaturaliza directamente los lípidos.", "C) Porque los puentes de H forman una red cristalina que expande el volumen del agua."],
+            disabled=deshabilitar,
+            key="d3_q2"
+        )
+        
+        q3 = st.radio(
+            "3. Cuando inyectas solución salina (NaCl en agua), los iones se separan y se estabilizan porque:",
+            ["A) Los polos del agua forman interacciones ion-dipolo alrededor del Na⁺ y el Cl⁻.", "B) El agua forma enlaces covalentes fuertes con los iones.", "C) Los iones sufren evaporación inmediata al contacto celular."],
+            disabled=deshabilitar,
+            key="d3_q3"
+        )
+        
+        st.markdown("**4. Pregunta Analítica (Respuesta Numérica)**")
+        st.markdown("Considera la estructura tetraédrica de una sola molécula de agua (un O central y dos H).")
+        q4 = st.number_input(
+            "¿Cuál es el número MÁXIMO teórico de puentes de hidrógeno que una molécula de agua puede formar simultáneamente con sus vecinas?",
+            value=0, step=1, disabled=deshabilitar, key="d3_q4"
+        )
+
+        if st.button("Enviar Respuestas y Guardar", type="primary", disabled=deshabilitar, use_container_width=True):
+            aciertos = 0
+            if q1.startswith("B"): aciertos += 1
+            if q2.startswith("C"): aciertos += 1
+            if q3.startswith("A"): aciertos += 1
+            if q4 == 4: aciertos += 1  # 2 por los H, 2 por los pares libres del O
             
-            with c1:
-                # Banco de solutos biológicos para dar mayor versatilidad académica universitaria
-                soluto_seleccionado = st.selectbox(
-                    "Selecciona el Soluto de Trabajo:",
-                    ["Cloruro de Sodio (NaCl)", "Glucosa ($C_6H_{12}O_6$)", "Urea ($CH_4N_2O$)"],
-                    key="sb_soluto"
-                )
-                
-                # Asignación de pesos moleculares exactos según la selección
-                if "NaCl" in soluto_seleccionado:
-                    peso_molecular = 58.44
-                    etiqueta_masa = "Masa de Soluto (g de NaCl):"
-                elif "Glucosa" in soluto_seleccionado:
-                    peso_molecular = 180.16
-                    etiqueta_masa = "Masa de Soluto (g de Glucosa):"
-                else:
-                    peso_molecular = 60.06
-                    etiqueta_masa = "Masa de Soluto (g de Urea):"
-                
-                sample_mass = st.slider(etiqueta_masa, min_value=1.0, max_value=100.0, value=5.8, step=0.1, key="sld_masa_soluto")
-                sample_vol = st.slider("Volumen Total de la Solución (Litros de $H_2O$):", min_value=0.1, max_value=5.0, value=1.0, step=0.1, key="sld_vol_solucion")
-                
-            # Algoritmo de estequiometría analítica libre de errores de redondeo
-            moles = sample_mass / peso_molecular
-            molaridad = moles / sample_vol
+            precision = (aciertos / 4) * 100
             
-            with c2:
-                st.markdown("#### **Parámetros de Solubilidad**")
-                st.write(f"🧬 **Masa Molecular (PM):** `{peso_molecular} g/mol`")
-                st.write(f"⚖️ **Cantidad de Soluto:** `{moles:.4f} moles`")
-                
-                # Métrica final destacada de concentración
-                st.metric("Molaridad Resultante ($M$):", f"{molaridad:.3f} mol/L")
-                
-                # Nota clínica veterinaria contextualizada según el soluto
-                if "NaCl" in soluto_seleccionado:
-                    if 0.150 <= molaridad <= 0.160:
-                        st.success("🩺 Solución Isotónica: Equivalente a la salinidad fisiológica del plasma (Suero fisiológico al 0.9%).")
-                    elif molaridad < 0.150:
-                        st.warning("⚠️ Solución Hipotónica: Puede provocar lisis (ruptura) de eritrocitos por entrada masiva de agua.")
-                    else:
-                        st.error("⚠️ Solución Hipertónica: Provocará crenación (deshidratación celular) en los tejidos del paciente.")
+            metadata = {
+                "juego_score_final": st.session_state.d3_juego_score,
+                "juego_intentos_totales": st.session_state.d3_juego_intentos,
+                "quiz_respuestas": [q1[0], q2[0], q3[0], q4],
+                "enfoque_seleccionado": enfoque
+            }
+            
+            correo_alumno = st.session_state.get("usuario_correo", "estudiante_invitado@unam.mx")
+            
+            exito = guardar_registro_juego(
+                alumno_id=correo_alumno,
+                dia_modulo=3,
+                puntaje=st.session_state.d3_juego_score,
+                precision_pct=int(precision),
+                metadata_juego=metadata
+            )
+            
+            st.session_state.d3_quiz_enviado = True
+            
+            if exito:
+                st.success(f"¡Resultados guardados de forma segura! Precisión: {precision}%")
+            else:
+                st.warning(f"Evaluación completada (Precisión: {precision}%). Módulo finalizado en modo local.")
+            
+            st.rerun()
