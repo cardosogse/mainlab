@@ -1,30 +1,30 @@
 import streamlit as st
 import database as db
 
-# Importación dinámica de las aplicaciones diarias del laboratorio
-import modulos.m1_dia1 as m1_dia1
-import modulos.m1_dia2 as m1_dia2
-import modulos.m1_dia3 as m1_dia3
-import modulos.m1_dia4 as m1_dia4
-import modulos.m1_dia5 as m1_dia5
-import modulos.m1_dia6 as m1_dia6
+# Importación protegida para evitar fallos de resolución de rutas en Streamlit Cloud
+try:
+    from modulos import m1_dia1, m1_dia2, m1_dia3, m1_dia4, m1_dia5, m1_dia6
+except ImportError:
+    import m1_dia1 as m1_dia1
+    import m1_dia2 as m1_dia2
+    import m1_dia3 as m1_dia3
+    import m1_dia4 as m1_dia4
+    import m1_dia5 as m1_dia5
+    import m1_dia6 as m1_dia6
 
 def inyectar_universo_y_neon_rapido():
     """
-    Inyecta un fondo espacial dinámico de estrellas centelleantes y acelera
-    la frecuencia del pulso de neón cian del logo principal para evitar retrasos visuales.
+    Inyecta el entorno visual de laboratorio nocturno avanzado: fondo con
+    estrellas centelleantes fijas y aceleración del pulso de neón a 1.2 segundos.
     """
     css_universo = """
     <style>
-    /* --- FONDO DEL UNIVERSO Y ESTRELLAS EN MOVIMIENTO --- */
+    /* --- FONDO DEL UNIVERSO ESTRELLADO --- */
     .stApp {
         background: radial-gradient(circle at center, #0a0e17 0%, #030508 100%) !important;
         background-attachment: fixed;
-        position: relative;
-        overflow-x: hidden;
     }
     
-    /* Simulación de polvo cósmico y estrellas mediante gradientes repetitivos traslúcidos */
     .stApp::before {
         content: "";
         position: fixed;
@@ -35,12 +35,12 @@ def inyectar_universo_y_neon_rapido():
             radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px);
         background-size: 550px 550px, 350px 350px, 250px 250px;
         background-position: 0 0, 40px 60px, 130px 270px;
-        opacity: 0.3;
+        opacity: 0.25;
         z-index: 0;
         pointer-events: none;
     }
 
-    /* --- OPTIMIZACIÓN DEL PULSO DE NEÓN (MÁS RÁPIDO E INTENSO) --- */
+    /* --- PULSO DE NEÓN ACELERADO --- */
     .main-title-suffix {
         color: #00f2fe !important;
         text-shadow: 0 0 8px #00f2fe, 
@@ -54,15 +54,13 @@ def inyectar_universo_y_neon_rapido():
         100% { text-shadow: 0 0 15px #00f2fe, 0 0 25px #00f2fe, 0 0 45px #00f2fe, 0 0 70px #00c6ff; filter: brightness(1.3); }
     }
 
-    /* --- CONTENEDORES DEL SELECTOR DE DÍAS --- */
     .selector-dias-container {
-        background: rgba(22, 27, 34, 0.75);
+        background: rgba(22, 27, 34, 0.7);
         border: 1px solid #30363d;
         backdrop-filter: blur(8px);
         padding: 15px;
         border-radius: 14px;
         margin-bottom: 25px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     }
     </style>
     """
@@ -70,23 +68,20 @@ def inyectar_universo_y_neon_rapido():
 
 def mostrar_modulo1():
     """
-    Orquestador principal de la Unidad 1.
-    Renderiza el menú de control estelar e intercomunica los días académicos.
+    Orquestador central del Módulo 1. Gestiona la botonera horizontal
+    de los 6 días académicos y previene errores de renderizado.
     """
-    # 1. Reparar apariencia visual inyectando el espacio exterior y el pulso óptimo
+    # Inyectar la estética visual solicitada
     inyectar_universo_y_neon_rapido()
     
-    # 2. Inicializar el tracking del día si no existe en el estado de sesión
     if "dia_seleccionado" not in st.session_state:
         st.session_state["dia_seleccionado"] = 1
 
     st.markdown("### 🗺️ Panel de Control del Analizador: Módulo 1")
-    st.markdown("Selecciona el día del itinerario científico que deseas ejecutar en este ciclo:")
+    st.markdown("Selecciona el día del itinerario científico que deseas ejecutar:")
 
-    # 3. INTERFAZ DE NAVEGACIÓN EN LÍNEA (EVITA MENÚS COLAPSADOS)
+    # Contenedor del selector horizontal
     st.markdown("<div class='selector-dias-container'>", unsafe_allow_html=True)
-    
-    # Renderizado en columnas equidistantes para soporte móvil responsivo
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     
     dias_config = [
@@ -100,7 +95,6 @@ def mostrar_modulo1():
     
     for col, num_dia, label, sub in dias_config:
         with col:
-            # Resaltar visualmente el día activo
             es_activo = st.session_state["dia_seleccionado"] == num_dia
             tipo_boton = "primary" if es_activo else "secondary"
             
@@ -113,7 +107,6 @@ def mostrar_modulo1():
             ):
                 st.session_state["dia_seleccionado"] = num_dia
                 st.session_state["dia_actual_traker"] = num_dia
-                # Registrar telemetría de navegación entre hitos del embudo
                 db.registrar_evento_telemetria(
                     st.session_state.get("token_actual", "DEMO"), 
                     num_dia, 
@@ -124,25 +117,18 @@ def mostrar_modulo1():
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("---")
 
-    # 4. ENRUTADOR DE FLUJO DE EJECUCIÓN (ROUTING DISPATCHER)
+    # Enrutamiento seguro hacia los días correspondientes
     dia_actual = st.session_state["dia_seleccionado"]
     
-    try:
-        if dia_actual == 1:
-            m1_dia1.app()
-        elif dia_actual == 2:
-            m1_dia2.app()
-        elif dia_actual == 3:
-            m1_dia3.app()
-        elif dia_actual == 4:
-            m1_dia4.app()
-        elif dia_actual == 5:
-            m1_dia5.app()
-        elif dia_actual == 6:
-            m1_dia6.app()
-    except Exception as e:
-        st.error(
-            f"🚨 **Error de acoplamiento en el analizador diario:** No se pudo inicializar la interfaz del Día {dia_actual}. "
-            f"Verifica la integridad de los archivos del módulo fuente."
-        )
-        st.caption(f"*Detalle técnico del error:* {str(e)}")
+    if dia_actual == 1:
+        m1_dia1.app()
+    elif dia_actual == 2:
+        m1_dia2.app()
+    elif dia_actual == 3:
+        m1_dia3.app()
+    elif dia_actual == 4:
+        m1_dia4.app()
+    elif dia_actual == 5:
+        m1_dia5.app()
+    elif dia_actual == 6:
+        m1_dia6.app()
