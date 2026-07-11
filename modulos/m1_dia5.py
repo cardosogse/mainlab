@@ -46,7 +46,6 @@ def inicializar_estado_dia5():
 def app():
     inicializar_estado_dia5()
     token_alumno = st.session_state.get("token_actual", "DEMO")
-    
     enfoque = st.radio(
         "🔬 Ajustar la Sensibilidad del Transductor:", 
         ["🐾 Veterinaria", "🩺 Medicina", "🧬 Biología"], 
