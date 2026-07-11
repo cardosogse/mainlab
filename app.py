@@ -47,59 +47,66 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- PANEL DE LOGIN CON DISEÑO VERTICAL COMPLETAMENTE RESPONSIVO ---
+# --- PANEL DE LOGIN INMUNIZADO CONTRA GHOST BLOCKS ---
 if st.session_state['auth'] is None:
     
-    # 1. Caja de Credenciales Principal (Centrada en la parte superior)
-    st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align:center; color:#ffffff; margin-top:0; font-family:monospace;'>🔑 ACCESO AL LABORATORIO</h4>", unsafe_allow_html=True)
-    
-    credencial = st.text_input("Introduce tu Licencia o Clave Maestra:", type="password", key="login_input_credencial")
-    
-    if st.button("🚀 INICIAR INVESTIGACIÓN", use_container_width=True, key="login_btn_acceder"):
-        credencial_limpia = credencial.strip()
-        if credencial_limpia == pass_maestra:
-            st.session_state['auth'] = 'admin'
-            st.rerun()
-        else:
-            es_valido, payload = db.validar_token(credencial_limpia)
-            if es_valido:
-                st.session_state['auth'] = 'usuario'
-                st.session_state['token_actual'] = credencial_limpia
-                st.session_state['puntos_acumulados'] = payload["puntos"]
-                st.session_state['vidas'] = payload["vidas"]
-                st.session_state['tiempo_historico_min'] = payload["tiempo"]
-                st.session_state['inicio_sesion_unix'] = time.time()
-                st.query_params["token"] = credencial_limpia
+    # 1. Módulo de Credenciales (Estructura Limpia)
+    with st.container():
+        st.markdown(
+            "<div style='text-align:center; padding: 10px 0;'>"
+            "<h4 style='color:#ffffff; margin-bottom:5px; font-family:monospace;'>🔑 ACCESO AL LABORATORIO</h4>"
+            "</div>", 
+            unsafe_allow_html=True
+        )
+        
+        credencial = st.text_input("Introduce tu Licencia o Clave Maestra:", type="password", key="login_input_credencial")
+        
+        if st.button("🚀 INICIAR INVESTIGACIÓN", use_container_width=True, key="login_btn_acceder"):
+            credencial_limpia = credencial.strip()
+            if credencial_limpia == pass_maestra:
+                st.session_state['auth'] = 'admin'
                 st.rerun()
             else:
-                st.error("❌ Credencial inválida o vencida.")
-    st.markdown("</div>", unsafe_allow_html=True)
+                es_valido, payload = db.validar_token(credencial_limpia)
+                if es_valido:
+                    st.session_state['auth'] = 'usuario'
+                    st.session_state['token_actual'] = credencial_limpia
+                    st.session_state['puntos_acumulados'] = payload["puntos"]
+                    st.session_state['vidas'] = payload["vidas"]
+                    st.session_state['tiempo_historico_min'] = payload["tiempo"]
+                    st.session_state['inicio_sesion_unix'] = time.time()
+                    st.query_params["token"] = credencial_limpia
+                    st.rerun()
+                else:
+                    st.error("❌ Credencial inválida o vencida.")
+                    
+    st.markdown("<div style='margin-bottom: 35px; border-bottom: 1px solid #30363d;'></div>", unsafe_allow_html=True)
     
-    st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
-    
-    # 2. Módulo de Gancho Interactivo (Alineado verticalmente abajo con anchos seguros)
-    st.markdown("<div class='lab-panel' style='border-left: 4px solid #00f2fe; max-width: 500px; margin: 0 auto;'>", unsafe_allow_html=True)
-    st.markdown("<h4 style='color:#00f2fe; margin-top:0; font-family:monospace;'>🔬 ANALIZADOR ORGÁNICO EXPRÉS</h4>", unsafe_allow_html=True)
-    st.caption("Prueba el potencial del laboratorio interactivo antes de ingresar tu licencia clínica:")
-    
-    grupo_test = st.selectbox(
-        "Selecciona un Grupo Funcional para analizar su comportamiento hídrico:",
-        ["Metilo (-CH₃)", "Hidroxilo (-OH)", "Fosforilo (-PO₄²⁻)"],
-        key="login_teaser_select"
-    )
-    
-    if grupo_test == "Metilo (-CH₃)":
-        st.error("❌ **Naturaleza Apolar (Hidrofóbico):** Enlaces covalentes simétricos. Repele activamente las redes de puentes de hidrógeno del agua.")
-        st.latex(r"\Delta\chi \text{ entre C e H } = 0.35 \rightarrow \text{Apolar}")
-    elif grupo_test == "Hidroxilo (-OH)":
-        st.warning("⚠️ **Naturaleza Polar (Hidrofílico):** Alta densidad electrónica sobre el oxígeno. Forma dipolos estables con el solvente celular.")
-        st.latex(r"\Delta\chi \text{ entre O e H } = 1.24 \rightarrow \text{Polar Dipolar}")
-    else:
-        st.success("⚡ **Naturaleza Iónica (Altamente Hidrofílico):** Carga neta negativa. Rompe la tensión superficial del agua mediante interacciones ion-dipolo extremas.")
-        st.latex(r"\text{Carga Neta Exterior: } -2")
+    # 2. Módulo de Gancho Interactivo Abierto (Contención Segura)
+    with st.container():
+        st.markdown(
+            "<div style='border-left: 4px solid #00f2fe; padding-left: 15px; margin-bottom: 15px;'>"
+            "<h4 style='color:#00f2fe; margin:0; font-family:monospace;'>🔬 ANALIZADOR ORGÁNICO EXPRÉS</h4>"
+            "</div>", 
+            unsafe_allow_html=True
+        )
+        st.caption("Prueba el potencial del laboratorio interactivo antes de ingresar tu licencia clínica:")
         
-    st.markdown("</div>", unsafe_allow_html=True)
+        grupo_test = st.selectbox(
+            "Selecciona un Grupo Funcional para analizar su comportamiento hídrico:",
+            ["Metilo (-CH₃)", "Hidroxilo (-OH)", "Fosforilo (-PO₄²⁻)"],
+            key="login_teaser_select"
+        )
+        
+        if grupo_test == "Metilo (-CH₃)":
+            st.error("❌ **Naturaleza Apolar (Hidrofóbico):** Enlaces covalentes simétricos. Repele activamente las redes de puentes de hidrógeno del agua.")
+            st.latex(r"\Delta\chi \text{ entre C e H } = 0.35 \rightarrow \text{Apolar}")
+        elif grupo_test == "Hidroxilo (-OH)":
+            st.warning("⚠️ **Naturaleza Polar (Hidrofílico):** Alta densidad electrónica sobre el oxígeno. Forma dipolos estables con el solvente celular.")
+            st.latex(r"\Delta\chi \text{ entre O e H } = 1.24 \rightarrow \text{Polar Dipolar}")
+        else:
+            st.success("⚡ **Naturaleza Iónica (Altamente Hidrofílico):** Carga neta negativa. Rompe la tensión superficial del agua mediante interacciones ion-dipolo extremas.")
+            st.latex(r"\text{Carga Neta Exterior: } -2")
 
 # --- CONSOLA DE ADMINISTRACIÓN ---
 elif st.session_state['auth'] == 'admin':
@@ -173,7 +180,7 @@ elif st.session_state['auth'] == 'admin':
 # --- VISTA DEL ALUMNO ---
 elif st.session_state['auth'] == 'usuario':
     minutos_de_sesion = int((time.time() - st.session_state['inicio_sesion_unix']) / 60)
-    st.session_state['tiempo_estudio_min'] = st.session_state['tiempo_historico_min'] + minutes_de_sesion
+    st.session_state['tiempo_estudio_min'] = st.session_state['tiempo_historico_min'] + minutos_de_sesion
     
     st.markdown("<div class='dashboard-triage'>", unsafe_allow_html=True)
     c_tk, c_vd, c_pt, c_tm = st.columns(4)
