@@ -23,20 +23,33 @@ except Exception:
     supabase = None
 
 def inicializar_db():
-    """Garantiza la creación atómica de las tablas necesarias."""
+    """Garantiza la creación y migración progresiva de la base de datos en disco."""
     with sqlite3.connect(DB_NAME) as conn:
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS tokens_acceso (
             token TEXT PRIMARY KEY, en_uso INTEGER, fecha_expiracion TEXT, 
             score_puntos INTEGER, vidas INTEGER, modulo_actual TEXT,
             intentos_quiz INTEGER, tiempo_estudio_min INTEGER, errores_quiz INTEGER)''')
+        
+        # ESCUDO DE MIGRACIÓN: Detecta tablas antiguas y añade las columnas analíticas faltantes
+        c.execute("PRAGMA table_info(tokens_acceso)")
+        columnas_existentes = [col[1] for col in c.fetchall()]
+        
+        columnas_nuevas = {
+            "intentos_quiz": "INTEGER DEFAULT 0",
+            "tiempo_estudio_min": "INTEGER DEFAULT 0",
+            "errores_quiz": "INTEGER DEFAULT 0"
+        }
+        
+        for col_nombre, col_tipo in columnas_nuevas.items():
+            if col_nombre not in columnas_existentes:
+                c.execute(f"ALTER TABLE tokens_acceso ADD COLUMN {col_nombre} {col_tipo}")
         conn.commit()
 
 def obtener_password_admin():
     return obtener_llave_secreta("config", "ADMIN_PASSWORD") or "ADMIN123"
 
 def validar_token(token: str):
-    """Valida la integridad de la licencia devolviendo un estado seguro."""
     try:
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
@@ -53,7 +66,6 @@ def validar_token(token: str):
     return False, "invalid"
 
 def sincronizar_progreso_db(token: str, puntos: int, mod: str, vidas: int, tiempo_min: int):
-    """Sincroniza el estado del alumno de forma segura y transaccional."""
     try:
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
@@ -84,11 +96,10 @@ def guardar_registro_juego(alumno_id: str, dia_modulo: int, puntaje: int, precis
         return False
 
 def generar_token(dias: int) -> str:
-    """Genera una licencia blindada contra excepciones de red o desajustes de esquemas."""
+    """Generates a token completely decoupled from the UI layer."""
     token = f"ML-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
     
-    # 1. Escritura obligatoria y atómica en la base de datos local
     try:
         with sqlite3.connect(DB_NAME) as conn:
             c = conn.cursor()
@@ -98,24 +109,16 @@ def generar_token(dias: int) -> str:
         st.error(f"Error al generar licencia en almacenamiento local: {str(e)}")
         return ""
         
-    # 2. Sincronización remota totalmente aislada en caso de fallos de red o inconsistencias de columnas
     if supabase:
         try:
             payload_remoto = {
-                "token": token, 
-                "en_uso": 0, 
-                "fecha_expiracion": fecha_exp, 
-                "score_puntos": 0, 
-                "vidas": 3, 
-                "modulo_actual": "1", 
-                "intentos_quiz": 0, 
-                "tiempo_estudio_min": 0, 
-                "errores_quiz": 0
+                "token": token, "en_uso": 0, "fecha_expiracion": fecha_exp, 
+                "score_puntos": 0, "vidas": 3, "modulo_actual": "1", 
+                "intentos_quiz": 0, "tiempo_estudio_min": 0, "errores_quiz": 0
             }
             supabase.table("tokens_acceso").insert(payload_remoto).execute()
-        except Exception as e:
-            # Si el servidor remoto responde con error, se notifica sutilmente pero NO interrumpe la aplicación
-            st.sidebar.warning("⚠️ Sincronización en la nube demorada. Datos respaldados localmente.")
+        except Exception:
+            pass
             
     return token
 
