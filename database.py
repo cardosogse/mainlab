@@ -17,7 +17,7 @@ SUPABASE_URL = obtener_llave_secreta("supabase", "SUPABASE_URL")
 SUPABASE_KEY = obtener_llave_secreta("supabase", "SUPABASE_KEY")
 DB_NAME = "mainlab_v3.db"
 
-# --- CAPA REST CON DIAGNÓSTICO ACTIVO (MUESTRA EL ERROR REAL EN PANTALLA) ---
+# --- CAPA REST CON DIAGNÓSTICO ACTIVO ---
 def _supabase_rest_post(tabla: str, payload: dict):
     if not SUPABASE_URL or not SUPABASE_KEY: return
     try:
@@ -158,6 +158,7 @@ def validar_token(token: str):
             (token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, tiempo_estudio_min, errores_quiz) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
+        # Adaptación de lectura: mapea errores_quizz (nube) a errores_quiz (local)
         _ejecutar_sql_escritura(query_insert, (
             token,
             registro_nube.get("en_uso", 0),
@@ -167,14 +168,14 @@ def validar_token(token: str):
             str(registro_nube.get("modulo_actual", "1")),
             registro_nube.get("intentos_quiz", 0),
             registro_nube.get("tiempo_estudio_min", 0),
-            registro_nube.get("errores_quiz", 0)
+            registro_nube.get("errores_quizz", 0)
         ))
         
         return True, {
             "puntos": registro_nube.get("score_puntos", 0),
             "vidas": registro_nube.get("vidas", 3),
             "modulo": str(registro_nube.get("modulo_actual", "1")),
-            "errores": registro_nube.get("errores_quiz", 0),
+            "errores": registro_nube.get("errores_quizz", 0),
             "tiempo": registro_nube.get("tiempo_estudio_min", 0)
         }
         
@@ -201,6 +202,7 @@ def guardar_registro_juego(alumno_id: str, dia_modulo: int, puntaje: int, precis
     return True
 
 def generar_token(dias: int) -> str:
+    """Genera una licencia localmente y la envía a la nube adaptándose al nombre de columna remoto."""
     token = f"ML-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
     
@@ -213,10 +215,11 @@ def generar_token(dias: int) -> str:
     if not exito:
         return ""
         
+    # ADAPTACIÓN DE ESCRITURA: Cambiamos errores_quiz por errores_quizz para la nube
     payload_remoto = {
         "token": token, "en_uso": 0, "fecha_expiracion": fecha_exp, 
         "score_puntos": 0, "vidas": 3, "modulo_actual": "1", 
-        "intentos_quiz": 0, "tiempo_estudio_min": 0, "errores_quiz": 0
+        "intentos_quiz": 0, "tiempo_estudio_min": 0, "errores_quizz": 0
     }
     _supabase_rest_post("tokens_acceso", payload_remoto)
     return token
@@ -236,7 +239,7 @@ def listar_todos_los_tokens():
             _ejecutar_sql_escritura(query_insert, (
                 reg.get("token"), reg.get("en_uso", 0), reg.get("fecha_expiracion"),
                 reg.get("score_puntos", 0), reg.get("vidas", 3), str(reg.get("modulo_actual", "1")),
-                reg.get("intentos_quiz", 0), reg.get("tiempo_estudio_min", 0), reg.get("errores_quiz", 0)
+                reg.get("intentos_quiz", 0), reg.get("tiempo_estudio_min", 0), reg.get("errores_quizz", 0)
             ))
         filas = _ejecutar_sql_lectura(query)
         
