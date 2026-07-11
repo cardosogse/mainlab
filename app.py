@@ -4,17 +4,21 @@ import time
 import database as db
 from assets import cargar_estilos, mezclar_memorama
 
-# 1. Configuración de página inmediata (Debe ser el primer comando)
+# 1. Configuración de página inmediata (Debe ser el primer comando de Streamlit)
 st.set_page_config(page_title="MainLab", layout="wide", page_icon="🧬")
 
-# 2. Inyección de estilos visuales corregidos
+# 2. Inyección de estilos CSS corregidos
 cargar_estilos()
 
-# 3. Inicialización del motor de datos y estado
+# 3. Inicialización del almacén de datos
 db.inicializar_db()
 
+# ==========================================
+# CENTRALIZACIÓN Y GESTIÓN DE ESTADO
+# ==========================================
+
 def init_session_state():
-    """Inicializa de forma segura todas las variables de control de flujo."""
+    """Inicializa de forma segura todas las variables de control de flujo y evita KeyErrors."""
     if 'auth' not in st.session_state:
         st.session_state['auth'] = None
     if 'token_actual' not in st.session_state:
@@ -28,7 +32,7 @@ init_session_state()
 pass_maestra_actual = db.obtener_password_admin()
 
 def hidratar_sesion_alumno(token, datos_db):
-    """Estructura el progreso del alumno recuperando datos persistentes."""
+    """Estructura el micro y macro progreso del alumno recuperando datos persistentes."""
     st.session_state['token_actual'] = token
     st.session_state['puntos_acumulados'] = datos_db.get("puntos", 0)
     st.session_state['vidas'] = datos_db.get("vidas", 3)
@@ -47,7 +51,7 @@ def hidratar_sesion_alumno(token, datos_db):
     if 'memo_tablero' not in st.session_state or not st.session_state['memo_tablero']:
         st.session_state['memo_tablero'] = mezclar_memorama()
     
-    # Escribe el token en la barra de direcciones de forma controlada
+    # Persistencia controlada del token en la URL para evitar bucles de refresco
     try:
         if "token" not in st.query_params or st.query_params["token"] != token:
             st.query_params["token"] = token
@@ -58,17 +62,15 @@ def hidratar_sesion_alumno(token, datos_db):
 # ==========================================
 # RENDERIZADO PRIORITARIO DE INTERFAZ
 # ==========================================
-# Al colocar esto AQUÍ, garantizamos que la página dibuje la interfaz y jamás quede en blanco
 st.markdown("<h1 class='main-title'>Main<span class='main-title-suffix'>Lab</span></h1>", unsafe_allow_html=True)
 
 
 # ==========================================
-# ESCUDO ANTI-REFRESCO (AUTO-LOGIN PROTEGIDO)
+# ESCUDO ANTI-REFRESCO (AUTO-LOGIN POR URL)
 # ==========================================
 if st.session_state['auth'] is None and "token" in st.query_params:
     token_url = st.query_params["token"].strip()
     if token_url:
-        # El spinner rompe el bloqueo visual informando al navegador que hay actividad
         with st.spinner("Autenticando credenciales de acceso..."):
             es_valido, payload = db.validar_token(token_url)
             if es_valido:
@@ -104,7 +106,7 @@ if st.session_state['auth'] is not None:
 
 
 # ==========================================
-# VISTAS CONDICIONALES DE NAVEGACIÓN
+# ENRUTAMIENTO DE VISTAS
 # ==========================================
 if st.session_state['auth'] is None:
     entrada = st.text_input("Ingresa Token o Clave Maestra:", type="password")
