@@ -41,7 +41,7 @@ if st.session_state['auth'] is None and "token" in st.query_params:
 
 st.markdown(
     '<div class="logo-container"><h1 class="main-title">Main<span class="main-title-suffix">Lab</span></h1>'
-    '<p class="main-subtitle">Bioquimica aplicada. Ciencia interactiva. Sin limites.</p></div>', 
+    '<p class="main-subtitle">Bioquímica aplicada. Ciencia interactiva. Sin límites.</p></div>', 
     unsafe_allow_html=True
 )
 
@@ -71,6 +71,13 @@ if st.session_state['auth'] is None:
 
 elif st.session_state['auth'] == 'admin':
     st.subheader("🔑 Consola de Control de Infraestructura")
+    
+    if st.button("🚪 Salir del Panel de Control", key="admin_btn_salir", type="primary"):
+        st.session_state['auth'] = None
+        st.session_state['token_actual'] = None
+        st.query_params.clear()
+        st.rerun()
+        
     tab_creacion, tab_monitoreo = st.tabs(["🆕 Crear Licencias", "📊 Monitorear Alumnos"])
     
     with tab_creacion:
@@ -78,10 +85,9 @@ elif st.session_state['auth'] == 'admin':
         if st.button("Generar Nueva Licencia", key="admin_btn_generar"):
             token_nuevo = db.generar_token(dias_vigencia)
             if token_nuevo: 
-                st.success(f"¡Licencia inyectada con éxito! Cópiala: {token_nuevo}")
+                st.success("🎉 ¡Licencia generada con éxito en el servidor local y la nube!")
+                st.info("Copia el token generado a continuación:")
                 st.code(token_nuevo, language="text")
-                time.sleep(1.0)
-                st.rerun() # Limpieza inmediata del ciclo de rendering
             
     with tab_monitoreo:
         tabla_datos = db.listar_todos_los_tokens()
@@ -98,16 +104,10 @@ elif st.session_state['auth'] == 'admin':
             if st.button("❌ DESTRUIR LICENCIA DEFINITIVAMENTE", use_container_width=True, key="admin_btn_revocar"):
                 db.eliminar_token(token_a_eliminar)
                 st.toast(f"Licencia {token_a_eliminar} revocada del servidor.", icon="🗑️")
-                time.sleep(0.5)
+                time.sleep(0.3)
                 st.rerun()
         else:
             st.info("No existen licencias registradas en el clúster de datos.")
-        
-    if st.button("🚪 Salir del Panel de Control", key="admin_btn_salir"):
-        st.session_state['auth'] = None
-        st.session_state['token_actual'] = None
-        st.query_params.clear()
-        st.rerun()
 
 elif st.session_state['auth'] == 'usuario':
     minutos_de_sesion = int((time.time() - st.session_state['inicio_sesion_unix']) / 60)
