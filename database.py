@@ -6,9 +6,7 @@ import string
 import streamlit as st
 from supabase import create_client
 
-# --- CARGADOR INTELIGENTE CONTRA KEYERRORS DE SECRETOS ---
 def obtener_llave_secreta(seccion, llave):
-    """Inspecciona dinámicamente st.secrets en su raíz o en subdiccionarios."""
     if seccion in st.secrets and llave in st.secrets[seccion]:
         return st.secrets[seccion][llave].strip()
     elif llave in st.secrets:
@@ -39,7 +37,6 @@ def inicializar_db():
         conn.close()
 
 def obtener_password_admin():
-    """Lee exclusivamente la clave real del archivo de secretos en Cloud."""
     return obtener_llave_secreta("config", "ADMIN_PASSWORD") or None
 
 def validar_token(token):
@@ -82,7 +79,6 @@ def sincronizar_progreso_db(token, puntos, mod, vidas, tiempo_min):
             pass
 
 def guardar_registro_juego(alumno_id, dia_modulo, puntaje, precision_pct, metadata_juego):
-    """Inserta las métricas y el JSONB de rendimiento en Supabase de forma segura."""
     if not supabase: return False
     payload = {
         "alumno_id": alumno_id, "dia_modulo": int(dia_modulo), "puntaje": int(puntaje),
@@ -95,7 +91,6 @@ def guardar_registro_juego(alumno_id, dia_modulo, puntaje, precision_pct, metada
         return False
 
 def registrar_evento_telemetria(token, dia, evento):
-    """Puente Failsafe para evitar caídas en cascada si un módulo registra interacciones."""
     if supabase:
         try:
             supabase.table("telemetria_eventos").insert({"token": token, "dia": int(dia), "evento": evento}).execute()
@@ -125,18 +120,36 @@ def generar_token(dias):
     return token
 
 def listar_todos_los_tokens():
+    """Recupera la matriz completa de variables analíticas sincronizadas con Supabase."""
     conn = sqlite3.connect(DB_NAME)
     filas = []
     try:
         with conn:
             c = conn.cursor()
-            c.execute("SELECT token, en_uso, fecha_expiracion, score_puntos, vidas FROM tokens_acceso")
+            c.execute("SELECT token, en_uso, fecha_expiracion, score_puntos, vidas, intentos_quiz, tiempo_estudio_min, errores_quiz FROM tokens_acceso")
             filas = c.fetchall()
     except sqlite3.Error:
         pass
     finally:
         conn.close()
-    return [{"Token": f[0], "Activo": f[1], "Expiracion": f[2], "Puntos": f[3], "Vidas": f[4]} for f in filas]
+    
+    claves = ["Token", "Activo", "Expiracion", "Puntos", "Vidas", "Intentos Quiz", "Tiempo Estudio (min)", "Errores Quiz"]
+    return [dict(zip(claves, f)) for f in filas]
 
-def forzar_liberacion_sesion(token): pass
-def eliminar_token(token): pass
+def eliminar_token(token):
+    """Ejecuta la purga física y lógica de una licencia en ambos entornos de datos."""
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        with conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM tokens_acceso WHERE token = ?", (token,))
+    except sqlite3.Error:
+        pass
+    finally:
+        conn.close()
+        
+    if supabase:
+        try:
+            supabase.table("tokens_acceso").delete().eq("token", token).execute()
+        except Exception:
+            pass
