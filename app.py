@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit st
 import pandas as pd
 import time
 import database as db
@@ -76,7 +76,7 @@ if st.session_state['auth'] is None:
                 st.error("❌ Credencial inválida.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- CONSOLA DE ADMINISTRACIÓN EXPANDIDA ---
+# --- CONSOLA DE ADMINISTRACIÓN ---
 elif st.session_state['auth'] == 'admin':
     st.subheader("🔑 Consola de Licencias")
     t_gen, t_mon = st.tabs(["🆕 Crear Licencias", "📊 Monitorear Alumnos"])
@@ -93,7 +93,6 @@ elif st.session_state['auth'] == 'admin':
             df = pd.DataFrame(datos)
             st.dataframe(df, use_container_width=True)
             
-            # --- SECCIÓN DE ELIMINACIÓN DE TOKENS HABILITADA ---
             st.markdown("---")
             st.markdown("#### 🗑️ Zona de Revocación de Licencias")
             token_sel = st.selectbox("Selecciona un Token de la matriz para eliminarlo:", df["Token"].tolist())
@@ -105,8 +104,11 @@ elif st.session_state['auth'] == 'admin':
         else:
             st.info("No hay registros en la base de datos.")
         
+    # --- BLINDAJE DE SALIDA EXPLICITA ---
     if st.button("🚪 Salir de Panel"):
         st.session_state['auth'] = None
+        st.session_state['token_actual'] = None
+        st.query_params.clear() # Limpia la URL de forma preventiva para evitar el crash al reiniciar
         st.rerun()
 
 elif st.session_state['auth'] == 'usuario':
