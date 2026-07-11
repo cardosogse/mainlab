@@ -2,29 +2,33 @@ import streamlit as st
 import random
 
 def cargar_estilos():
-    """
-    Inyecta los estilos CSS nativos ultraligeros protegiendo la estructura 
-    raíz de la aplicación para evitar pantallas en blanco.
-    """
+    """Inyecta los estilos CSS nativos exactos del diseño original del laboratorio."""
     estilos = """
     <style>
-    /* --- OCULTAMIENTO QUIRÚRGICO DE MÓDULOS NATIVOS DE STREAMLIT --- */
+    /* --- INTEGRACIÓN UX SIN BLOQUEO --- */
     [data-testid="stHeader"] { visibility: hidden; }
-    [data-testid="stSidebarNav"] { padding-top: 1rem; }
     footer { visibility: hidden; }
     
-    /* --- MAQUETADO ESTABLE --- */
     .main-title {
         text-align: center;
         font-family: 'Arial', sans-serif;
         color: #1E3A8A;
-        margin-top: -40px;
+        margin-top: -30px;
+        margin-bottom: 20px;
     }
     .main-title-suffix {
         color: #3B82F6;
     }
     
-    /* --- DÍA 1: PARTÍCULAS --- */
+    .lab-panel {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+        margin-bottom: 15px;
+    }
+    
+    /* --- DÍA 1: ESPECTRÓMETRO DE MASAS --- */
     .particula {
         display: inline-block;
         border-radius: 50%;
@@ -35,7 +39,7 @@ def cargar_estilos():
     .neutron { background-color: #808495; width: 20px; height: 20px; }
     .electron { background-color: #4facfe; width: 10px; height: 10px; }
 
-    /* --- DÍA 2: CÁMARAS Y ENLACES --- */
+    /* --- DÍA 2: REACTOR DE FUSIÓN --- */
     .nube-apolar {
         width: 100%; height: 120px;
         border-radius: 60px;
@@ -63,7 +67,7 @@ def cargar_estilos():
     .ion-cat { background: #4facfe; }
     .ion-an { background: #ff0844; }
 
-    /* --- DÍA 6: FLUIDOTERAPIA --- */
+    /* --- DÍA 6: FLUIDOTERAPIA CLÍNICA --- */
     .plasma-sanguineo {
         background-color: #fce8e8;
         border: 2px dashed #f8b4b4;
