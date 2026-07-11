@@ -14,7 +14,8 @@ class ControlEstadoGlobal:
         esquema_estados = {
             'auth': None, 'token_actual': None, 'procesando': False,
             'puntos_acumulados': 0, 'vidas': 3, 'tiempo_historico_min': 0,
-            'tiempo_estudio_min': 0, 'inicio_sesion_unix': None, 'modulo_actual': "1"
+            'tiempo_estudio_min': 0, 'inicio_sesion_unix': None, 'modulo_actual': "1",
+            'ultimo_token_generado': None  # Almacenamiento persistente en UI administrativa
         }
         for clave, valor_defecto in esquema_estados.items():
             if clave not in st.session_state:
@@ -72,9 +73,10 @@ if st.session_state['auth'] is None:
 elif st.session_state['auth'] == 'admin':
     st.subheader("🔑 Consola de Control de Infraestructura")
     
-    if st.button("🚪 Salir del Panel de Control", key="admin_btn_salir", type="primary"):
+    if st.button("🚪 Cerrar Sesión de Administrador", key="admin_btn_salir", type="primary"):
         st.session_state['auth'] = None
         st.session_state['token_actual'] = None
+        st.session_state['ultimo_token_generado'] = None
         st.query_params.clear()
         st.rerun()
         
@@ -85,9 +87,17 @@ elif st.session_state['auth'] == 'admin':
         if st.button("Generar Nueva Licencia", key="admin_btn_generar"):
             token_nuevo = db.generar_token(dias_vigencia)
             if token_nuevo: 
-                st.success("🎉 ¡Licencia generada con éxito en el servidor local y la nube!")
-                st.info("Copia el token generado a continuación:")
-                st.code(token_nuevo, language="text")
+                st.session_state['ultimo_token_generado'] = token_nuevo
+                st.success("🎉 ¡Licencia registrada de manera segura!")
+            else:
+                st.error("Error al inyectar la licencia en el almacenamiento.")
+                
+        if st.session_state['ultimo_token_generado']:
+            st.info("Copia el último token generado para el alumno:")
+            st.code(st.session_state['ultimo_token_generado'], language="text")
+            if st.button("🗑️ Limpiar Pantalla", key="admin_clear_token_view"):
+                st.session_state['ultimo_token_generado'] = None
+                st.rerun()
             
     with tab_monitoreo:
         tabla_datos = db.listar_todos_los_tokens()
@@ -103,6 +113,8 @@ elif st.session_state['auth'] == 'admin':
             )
             if st.button("❌ DESTRUIR LICENCIA DEFINITIVAMENTE", use_container_width=True, key="admin_btn_revocar"):
                 db.eliminar_token(token_a_eliminar)
+                if st.session_state['ultimo_token_generado'] == token_a_eliminar:
+                    st.session_state['ultimo_token_generado'] = None
                 st.toast(f"Licencia {token_a_eliminar} revocada del servidor.", icon="🗑️")
                 time.sleep(0.3)
                 st.rerun()
