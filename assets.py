@@ -3,26 +3,28 @@ import random
 
 def cargar_estilos():
     """
-    Inyecta los estilos CSS nativos ultraligeros para renderizar 
-    los simuladores biológicos y químicos sin depender de imágenes pesadas.
+    Inyecta los estilos CSS nativos ultraligeros protegiendo la estructura 
+    raíz de la aplicación para evitar pantallas en blanco.
     """
     estilos = """
     <style>
-    /* --- ESTILOS GENERALES DE LIMPIEZA UX --- */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* --- OCULTAMIENTO QUIRÚRGICO DE MÓDULOS NATIVOS DE STREAMLIT --- */
+    [data-testid="stHeader"] { visibility: hidden; }
+    [data-testid="stSidebarNav"] { padding-top: 1rem; }
+    footer { visibility: hidden; }
     
+    /* --- MAQUETADO ESTABLE --- */
     .main-title {
         text-align: center;
         font-family: 'Arial', sans-serif;
         color: #1E3A8A;
+        margin-top: -40px;
     }
     .main-title-suffix {
         color: #3B82F6;
     }
     
-    /* --- DÍA 1: ESPECTRÓMETRO DE MASAS (Partículas subatómicas) --- */
+    /* --- DÍA 1: PARTÍCULAS --- */
     .particula {
         display: inline-block;
         border-radius: 50%;
@@ -33,12 +35,11 @@ def cargar_estilos():
     .neutron { background-color: #808495; width: 20px; height: 20px; }
     .electron { background-color: #4facfe; width: 10px; height: 10px; }
 
-    /* --- DÍA 2: REACTOR DE FUSIÓN (Nubes Electrónicas y Pauling) --- */
+    /* --- DÍA 2: CÁMARAS Y ENLACES --- */
     .nube-apolar {
         width: 100%; height: 120px;
         border-radius: 60px;
         background: radial-gradient(circle at 50%, #4facfe 0%, #00f2fe 100%);
-        transition: all 0.5s ease;
         display: flex; justify-content: space-around; align-items: center;
         color: white; font-weight: bold; font-size: 1.5rem;
     }
@@ -46,7 +47,6 @@ def cargar_estilos():
         width: 100%; height: 120px;
         border-radius: 60px 120px 120px 60px;
         background: radial-gradient(circle at 75%, #ff0844 0%, #ffb199 100%);
-        transition: all 0.5s ease;
         display: flex; justify-content: space-around; align-items: center;
         color: white; font-weight: bold; font-size: 1.5rem;
     }
@@ -63,7 +63,7 @@ def cargar_estilos():
     .ion-cat { background: #4facfe; }
     .ion-an { background: #ff0844; }
 
-    /* --- DÍA 6: FLUIDOTERAPIA CLÍNICA (Tonicidad y Eritrocitos) --- */
+    /* --- DÍA 6: FLUIDOTERAPIA --- */
     .plasma-sanguineo {
         background-color: #fce8e8;
         border: 2px dashed #f8b4b4;
@@ -77,21 +77,18 @@ def cargar_estilos():
         border-radius: 50%;
         background: radial-gradient(circle at center, #ff7b7b 30%, #cc0000 80%);
         box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
-        transition: all 0.6s ease;
     }
     .eritrocito-hipotonico {
         width: 180px; height: 180px;
         border-radius: 50%;
         background: radial-gradient(circle at center, #ff9b9b 10%, #e60000 90%);
         box-shadow: 0px 0px 30px rgba(255,0,0,0.6);
-        transition: all 0.6s ease;
     }
     .eritrocito-hipertonico {
         width: 90px; height: 90px;
         border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; 
         background: radial-gradient(circle at center, #990000 40%, #660000 90%);
         box-shadow: inset 8px 8px 20px rgba(0,0,0,0.7);
-        transition: all 0.6s ease;
     }
     </style>
     """
