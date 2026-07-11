@@ -1,235 +1,143 @@
 import streamlit as st
-import uuid
-from datetime import datetime, timedelta
+import random
 
-@st.cache_resource
-def init_supabase():
+def cargar_estilos():
     """
-    Inicialización ultra-resiliente del cliente de Supabase.
-    Soporta múltiples variantes de nombres en Streamlit Secrets.
+    Inyecta los estilos CSS nativos del Sistema 1.
+    Restaura la estética de laboratorio cibernético nocturno y el parpadeo
+    suave y elegante de 'Lab' en cian bioquímico.
     """
-    try:
-        url = None
-        key = None
+    estilos = """
+    <style>
+        [data-testid="stHeader"] { visibility: hidden; }
+        footer { visibility: hidden; }
         
-        # 1. Buscar variantes en la raíz de los secrets
-        if "SUPABASE_URL" in st.secrets: url = st.secrets["SUPABASE_URL"]
-        elif "url" in st.secrets: url = st.secrets["url"]
-        
-        if "SUPABASE_KEY" in st.secrets: key = st.secrets["SUPABASE_KEY"]
-        elif "key" in st.secrets: key = st.secrets["key"]
-        
-        # 2. Buscar variantes dentro del bloque [supabase] si existe
-        if "supabase" in st.secrets:
-            sb = st.secrets["supabase"]
-            if "url" in sb: url = sb["url"]
-            elif "SUPABASE_URL" in sb: url = sb["SUPABASE_URL"]
-            
-            if "key" in sb: key = sb["key"]
-            elif "SUPABASE_KEY" in sb: key = sb["SUPABASE_KEY"]
-        
-        if url and key:
-            from supabase import create_client
-            return create_client(url, key)
-            
-    except Exception as e:
-        st.warning(f"Error al conectar con la infraestructura Cloud: {str(e)}")
-    
-    return None
-
-# Instancia global protegida
-supabase = init_supabase()
-
-def inicializar_db():
-    """Garantiza la existencia de la persistencia simulada de contingencia local."""
-    if "tokens_locales" not in st.session_state:
-        st.session_state["tokens_locales"] = {
-            "UNAM-ADMIN-2026": {"tipo": "admin", "vigencia": "2030-12-31"},
-            "TOKEN-DEMO-MVZ": {"tipo": "usuario", "puntos": 25, "vidas": 3, "errores": 0, "tiempo": 5, "vigencia": "2027-12-31"}
+        .stApp {
+            background-color: #0d1117;
+            color: #c9d1d9;
         }
-
-@st.cache_data(ttl=600)
-def obtener_password_admin():
-    """
-    Recupera la clave maestra con una jerarquía de tres niveles:
-    1. Secrets locales/nube de Streamlit (Evita latencia de red).
-    2. Tabla 'config' de Supabase (Protegido por caché de 10 minutos).
-    3. Fallback seguro por defecto.
-    """
-    # Nivel 1: Buscar directamente en los Secrets de Streamlit
-    if "PASSWORD_ADMIN" in st.secrets:
-        return st.secrets["PASSWORD_ADMIN"]
-    if "supabase" in st.secrets and "password_admin" in st.secrets["supabase"]:
-        return st.secrets["supabase"]["password_admin"]
-
-    # Nivel 2: Consulta optimizada a la base de datos
-    if supabase:
-        try:
-            res = supabase.table("config").select("value").eq("key", "password_admin").execute()
-            if res.data and len(res.data) > 0:
-                return res.data[0]["value"]
-        except Exception:
-            pass
-            
-    # Nivel 3: Fallback de contingencia
-    return "ADMIN123"
-
-@st.cache_data(ttl=60)
-def validar_token(token_str):
-    """
-    Valida las credenciales de acceso mitigando consultas redundantes mediante caché dinámico.
-    Retorna un booleano de éxito y el diccionario con el estado del alumno.
-    """
-    inicializar_db()
-    if not token_str:
-        return False, "invalid"
         
-    # Verificación prioritaria en contingencia local interna
-    if token_str in st.session_state["tokens_locales"]:
-        return True, st.session_state["tokens_locales"][token_str]
+        .logo-container {
+            text-align: center;
+            padding: 20px 0 10px 0;
+            margin-bottom: 25px;
+        }
         
-    # Consulta remota optimizada
-    if supabase:
-        try:
-            res = supabase.table("tokens").select("*").eq("token_id", token_str).execute()
-            if res.data and len(res.data) > 0:
-                fila = res.data[0]
-                
-                # Validación de expiración cronológica
-                expiracion_str = fila.get("expiracion")
-                if expiracion_str:
-                    expiracion = datetime.strptime(expiracion_str, "%Y-%m-%d").date()
-                    if expiracion < datetime.now().date():
-                        return False, "expired"
-
-                payload = {
-                    "puntos": fila.get("puntos", 0),
-                    "vidas": fila.get("vidas", 3),
-                    "errores": fila.get("errores", 0),
-                    "tiempo": fila.get("tiempo", 0),
-                    "vigencia": expiracion_str
-                }
-                return True, payload
-        except Exception:
-            pass
-            
-    return False, "invalid"
-
-def sincronizar_progreso_db(token, puntos, modulo, vidas, tiempo):
-    """
-    Persistencia atómica del macro y micro progreso del alumno.
-    Utiliza operaciones seguras e incluye registros de auditoría de tiempo.
-    """
-    inicializar_db()
-    
-    # 1. Actualización inmediata del nodo de contingencia local
-    if token in st.session_state["tokens_locales"]:
-        st.session_state["tokens_locales"][token].update({
-            "puntos": puntos,
-            "vidas": vidas,
-            "tiempo": tiempo
-        })
+        .main-title {
+            font-family: 'Courier New', Courier, monospace, sans-serif;
+            font-weight: 800;
+            font-size: 3.5rem;
+            color: #ffffff;
+            margin: 0;
+            letter-spacing: 2px;
+        }
         
-    # 2. Sincronización asíncrona hacia Supabase (Pattern: Upsert/Update Seguro)
-    if supabase:
-        try:
-            supabase.table("tokens").update({
-                "puntos": puntos,
-                "vidas": vidas,
-                "tiempo": tiempo,
-                "ultima_sincronizacion": datetime.now().isoformat()
-            }).eq("token_id", token).execute()
-        except Exception as e:
-            # Falla silenciosa en la UI pero capturada para desarrollo
-            pass
+        .main-title-suffix {
+            color: #00f2fe;
+            text-shadow: 0 0 5px #00f2fe, 0 0 10px #00f2fe, 0 0 20px #00f2fe, 0 0 40px #4facfe;
+            animation: pulso-neon 2.5s infinite alternate ease-in-out;
+        }
+        
+        .main-subtitle {
+            font-family: 'Arial', sans-serif;
+            font-style: italic;
+            font-size: 1.1rem;
+            color: #8b949e;
+            margin-top: 8px;
+        }
+        
+        @keyframes pulso-neon {
+            0% { text-shadow: 0 0 4px #00f2fe, 0 0 8px #00f2fe, 0 0 15px #00f2fe; opacity: 0.85; }
+            100% { text-shadow: 0 0 6px #00f2fe, 0 0 14px #00f2fe, 0 0 25px #00f2fe, 0 0 50px #4facfe; opacity: 1; }
+        }
+        
+        /* Botones del Sistema 1: Encienden con sombras al pasar el cursor o hacer click */
+        .stButton>button {
+            background: rgba(0, 242, 254, 0.02) !important;
+            color: #00f2fe !important;
+            border: 1px solid rgba(0, 242, 254, 0.3) !important;
+            border-radius: 8px !important;
+            padding: 10px 24px !important;
+            font-weight: bold !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        
+        .stButton>button:hover {
+            background: rgba(0, 242, 254, 0.12) !important;
+            border-color: #00f2fe !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.4) !important;
+        }
+        
+        .lab-panel {
+            background-color: #161b22;
+            padding: 22px;
+            border-radius: 12px;
+            border: 1px solid #30363d;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        
+        .login-box {
+            max-width: 500px;
+            margin: 0 auto;
+            background-color: #161b22;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #30363d;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+        }
+        
+        .dashboard-triage {
+            background: linear-gradient(135deg, #161b22 0%, #0d1117 100%);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #00f2fe;
+            margin-bottom: 25px;
+        }
+        
+        /* Partículas del Día 1 */
+        .particula {
+            display: inline-block;
+            border-radius: 50%;
+            margin: 4px;
+            box-shadow: inset -3px -3px 6px rgba(0,0,0,0.6);
+        }
+        .proton { background: radial-gradient(circle at 35%, #ff6b6b, #cc0000); width: 22px; height: 22px; }
+        .neutron { background: radial-gradient(circle at 35%, #9499a7, #4e515a); width: 22px; height: 22px; }
+        .electron { background: radial-gradient(circle at 35%, #64d8cb, #00a896); width: 12px; height: 12px; box-shadow: 0 0 6px #00f2fe; }
 
-def registrar_evento_telemetria(alumno_id, dia_modulo, evento_tipo):
+        /* Nubes de Enlaces del Día 2 */
+        .nube-apolar {
+            width: 100%; height: 120px; border-radius: 60px;
+            background: radial-gradient(circle at 50%, #21262d 0%, #161b22 100%);
+            border: 2px dashed #30363d; display: flex; justify-content: space-around; align-items: center;
+        }
+        .nube-polar {
+            width: 100%; height: 120px; border-radius: 60px 120px 120px 60px;
+            background: radial-gradient(circle at 75%, #ff3860 0%, #1f242c 100%);
+            border: 2px solid #ff3860; display: flex; justify-content: space-around; align-items: center;
+            box-shadow: 0 0 15px rgba(255,56,96,0.3);
+        }
+        .ruptura-ionica { display: flex; justify-content: space-around; width: 100%; padding: 15px 0; }
+        .ion-cat, .ion-an { width: 90px; height: 90px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; }
+        .ion-cat { background: radial-gradient(circle at 35%, #4facfe, #0052d4); border: 2px solid #00f2fe; }
+        .ion-an { background: radial-gradient(circle at 35%, #ff0844, #990022); border: 2px solid #ff0844; }
+
+        /* Eritrocitos del Día 6 */
+        .plasma-sanguineo {
+            background-color: #1a0f12; border: 2px dashed #ff3860; border-radius: 16px;
+            padding: 30px; display: flex; justify-content: center; align-items: center; height: 240px;
+        }
+        .eritrocito-isotonico { width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle at 35%, #ff4d4d 20%, #990000 80%); }
+        .eritrocito-hipotonico { width: 170px; height: 170px; border-radius: 50%; background: radial-gradient(circle at 35%, #ff6666 10%, #cc0000 85%); box-shadow: 0 0 25px rgba(255,77,77,0.6); }
+        .eritrocito-hypertonico { width: 90px; height: 90px; border-radius: 35% 65% 60% 40%; background: radial-gradient(circle at 35%, #730000 30%, #400000 90%); }
+    </style>
     """
-    Registra marcas de tiempo exactas del flujo instruccional del estudiante
-    para mitigar la ceguera de embudo y analizar tasas de abandono.
-    """
-    if supabase:
-        try:
-            payload = {
-                "alumno_id": alumno_id,
-                "dia_modulo": int(dia_modulo),
-                "evento": evento_tipo,
-                "timestamp": datetime.now().isoformat()
-            }
-            supabase.table("telemetria_estudiantes").insert(payload).execute()
-            return True
-        except Exception:
-            return False
-    return False
+    st.markdown(estilos, unsafe_allow_html=True)
 
-def generar_token(dias_vigencia):
-    """Crea una nueva licencia única de acceso al entorno educativo."""
-    inicializar_db()
-    nuevo_tk = f"MVZ-{uuid.uuid4().hex[:6].upper()}"
-    fecha_exp = (datetime.now() + timedelta(days=dias_vigencia)).strftime("%Y-%m-%d")
-    
-    st.session_state["tokens_locales"][nuevo_tk] = {
-        "tipo": "usuario", "puntos": 0, "vidas": 3, "errores": 0, "tiempo": 0, "vigencia": fecha_exp
-    }
-    
-    if supabase:
-        try:
-            supabase.table("tokens").insert({
-                "token_id": nuevo_tk, "puntos": 0, "vidas": 3, "tiempo": 0, "expiracion": fecha_exp
-            }).execute()
-        except Exception:
-            pass
-            
-    return nuevo_tk
-
-def listar_todos_los_tokens():
-    """Recupera la nómina completa de licencias para el monitor administrativo."""
-    inicializar_db()
-    lista = []
-    for tk, val in st.session_state["tokens_locales"].items():
-        if val.get("tipo") != "admin":
-            lista.append({
-                "Token": tk,
-                "Puntos": val.get("puntos", 0),
-                "Vidas": val.get("vidas", 3),
-                "Tiempo (min)": val.get("tiempo", 0),
-                "Expiración": val.get("vigencia", "N/A")
-            })
-    return lista
-
-def forzar_liberacion_sesion(token):
-    """Remueve bloqueos lógicos o banderas de sesión activa para un token específico."""
-    if supabase:
-        try:
-            supabase.table("tokens").update({"sesion_activa": False}).eq("token_id", token).execute()
-        except Exception:
-            pass
-
-def eliminar_token(token):
-    """Remueve de raíz el acceso a un token."""
-    inicializar_db()
-    if token in st.session_state["tokens_locales"]:
-        del st.session_state["tokens_locales"][token]
-    if supabase:
-        try:
-            supabase.table("tokens").delete().eq("token_id", token).execute()
-        except Exception:
-            pass
-
-def guardar_registro_juego(alumno_id, dia_modulo, puntaje, precision_pct, metadata_juego):
-    """Inserta el récord analítico final de evaluaciones en la tabla 'historial_juegos'."""
-    payload = {
-        "alumno_id": alumno_id,
-        "dia_modulo": dia_modulo,
-        "puntaje": puntaje,
-        "precision_pct": precision_pct,
-        "metadata_juego": metadata_juego,
-        "fecha_registro": datetime.now().isoformat()
-    }
-    if supabase:
-        try:
-            supabase.table("historial_juegos").insert(payload).execute()
-            return True
-        except Exception:
-            return False
-    return False
+def mezclar_memorama():
+    conceptos = ["Na+", "Catión", "Cl-", "Anión", "H2O", "Dipolo", "Lípido", "Apolar"]
+    tablero = conceptos * 2
+    random.shuffle(tablero)
+    return tablero
