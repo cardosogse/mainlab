@@ -56,7 +56,6 @@ def app():
         st.subheader("🔬 Simulador de Tonicidad Celular")
         tonicidad = st.slider("Tonicidad del Fluido (0.5x a 1.5x)", min_value=0.5, max_value=1.5, value=1.0, step=0.1)
 
-        # Lógica de renderizado según tonicidad
         if tonicidad < 0.9:
             estado_visual = "eritrocito-hipotonico"
             mensaje = "🔴 ¡HIPOTÓNICO! La célula se hincha (Riesgo de Lisis)."
@@ -68,7 +67,6 @@ def app():
             mensaje = "🔵 ¡HIPERTÓNICO! La célula se crenó (deshidratación celular)."
 
         st.info(mensaje)
-        # Contenedor del eritrocito (CSS de assets.py)
         st.markdown(f"""
         <div class='plasma-sanguineo'>
             <div class='{estado_visual}'></div>
@@ -76,7 +74,6 @@ def app():
         """, unsafe_allow_html=True)
         
         st.caption("Nota: La consola ajusta el volumen celular en tiempo real según la tonicidad inyectada.")
-
 
     # ==========================================
     # PESTAÑA 2: JUEGO - TRIAGE CLÍNICO
@@ -104,7 +101,6 @@ def app():
             if st.button(opcion, use_container_width=True):
                 verificar_triage(opcion)
                 st.rerun()
-
 
     # ==========================================
     # PESTAÑA 3: QUIZ DE CERTIFICACIÓN
@@ -135,14 +131,14 @@ def app():
         
         q4 = st.number_input(
             "¿Cuál es el valor aproximado de la osmolaridad plasmática normal en mamíferos (mOsm/L)?",
-            value=250, step=1, disabled=deshabilitar, key="d6_q4"
+            value=290, min_value=0, step=1, disabled=deshabilitar, key="d6_q4"
         )
 
         if st.button("Enviar Respuestas Finales", type="primary", disabled=deshabilitar, use_container_width=True):
             aciertos = 0
-            if q1.endswith("C)"): aciertos += 1
-            if q2.endswith("A)"): aciertos += 1
-            if q3.endswith("B)"): aciertos += 1
+            if q1.startswith("C"): aciertos += 1
+            if q2.startswith("A"): aciertos += 1
+            if q3.startswith("B"): aciertos += 1
             if 280 <= q4 <= 300: aciertos += 1
             
             precision = (aciertos / 4) * 100
@@ -153,13 +149,13 @@ def app():
                 "enfoque_seleccionado": enfoque
             }
             
-            exito = guardar_registro_juego(
-                st.session_state.get("usuario_correo", "estudiante_invitado@unam.mx"),
-                6, st.session_state.d6_juego_score, int(precision), metadata
-            )
+            # Ajuste de consistencia de la llave identificadora del alumno
+            id_investigador = st.session_state.get("token_actual", "TOKEN-DEMO-MVZ")
+            
+            exito = guardar_registro_juego(id_investigador, 6, st.session_state.d6_juego_score, int(precision), metadata)
             
             st.session_state.d6_quiz_enviado = True
             if exito: st.success(f"¡Unidad 1 Finalizada! Precisión: {precision}%")
-            else: st.warning(f"Evaluación completada. Precisión: {precision}%")
+            else: st.warning(f"Evaluación completada con éxito. Precisión: {precision}%")
             
             st.rerun()
