@@ -3,7 +3,7 @@ import datetime
 from datetime import timedelta
 import random
 import string
-import threading
+import requests
 import streamlit as st
 from supabase import create_client
 
@@ -23,6 +23,49 @@ try:
 except Exception:
     supabase = None
 
+# --- CONECTORES ULTRA-ESTABLES DE CAPA REST (ANTI-CRASH) ---
+def _supabase_rest_post(tabla: str, payload: dict):
+    if not SUPABASE_URL or not SUPABASE_KEY: return
+    try:
+        url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{tabla}"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+        }
+        requests.post(url, headers=headers, json=payload, timeout=6)
+    except Exception:
+        pass
+
+def _supabase_rest_patch(tabla: str, payload: dict, columna_filtro: str, valor_filtro: str):
+    if not SUPABASE_URL or not SUPABASE_KEY: return
+    try:
+        url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{tabla}?{columna_filtro}=eq.{valor_filtro}"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+        }
+        requests.patch(url, headers=headers, json=payload, timeout=6)
+    except Exception:
+        pass
+
+def _supabase_rest_delete(tabla: str, columna_filtro: str, valor_filtro: str):
+    if not SUPABASE_URL or not SUPABASE_KEY: return
+    try:
+        url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/{tabla}?{columna_filtro}=eq.{valor_filtro}"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Prefer": "return=minimal"
+        }
+        requests.delete(url, headers=headers, timeout=6)
+    except Exception:
+        pass
+
+# --- CONTROL DE INFRAESTRUCTURA LOCAL ---
 def inicializar_db():
     """Garantiza la creación y migración progresiva de la base de datos en disco."""
     with sqlite3.connect(DB_NAME) as conn:
@@ -65,30 +108,6 @@ def validar_token(token: str):
         st.error(f"Fallo crítico en capa de datos local: {str(e)}")
     return False, "invalid"
 
-# --- FUNCIONES INTERNAS PARA EJECUCIÓN SEGURA EN HILOS DE FONDO ---
-def _insertar_supabase_bg(payload):
-    if supabase:
-        try:
-            supabase.table("tokens_acceso").insert(payload).execute()
-        except Exception:
-            pass
-
-def _eliminar_supabase_bg(token):
-    if supabase:
-        try:
-            supabase.table("tokens_acceso").delete().eq("token", token).execute()
-        except Exception:
-            pass
-
-def _sincronizar_supabase_bg(token, puntos, mod, vidas, tiempo_min):
-    if supabase:
-        try:
-            supabase.table("tokens_acceso").update({
-                "score_puntos": int(puntos), "modulo_actual": str(mod), "vidas": int(vidas), "tiempo_estudio_min": int(tiempo_min)
-            }).eq("token", token).execute()
-        except Exception:
-            pass
-
 def sincronizar_progreso_db(token: str, puntos: int, mod: str, vidas: int, tiempo_min: int):
     try:
         with sqlite3.connect(DB_NAME) as conn:
@@ -97,33 +116,27 @@ def sincronizar_progreso_db(token: str, puntos: int, mod: str, vidas: int, tiemp
                       (int(puntos), str(mod), int(vidas), int(tiempo_min), token))
             conn.commit()
             
-        # Desacoplamiento asíncrono seguro
-        threading.Thread(
-            target=_sincronizar_supabase_bg, 
-            args=(token, puntos, mod, vidas, tiempo_min), 
-            daemon=True
-        ).start()
+        # Actualización remota HTTP pura libre de asyncio
+        payload_update = {
+            "score_puntos": int(puntos), 
+            "modulo_actual": str(mod), 
+            "vidas": int(vidas), 
+            "tiempo_estudio_min": int(tiempo_min)
+        }
+        _supabase_rest_patch("tokens_acceso", payload_update, "token", token)
     except sqlite3.Error:
         pass
 
 def guardar_registro_juego(alumno_id: str, dia_modulo: int, puntaje: int, precision_pct: int, metadata_juego: dict):
-    if not supabase: return False
     payload = {
         "alumno_id": alumno_id, "dia_modulo": int(dia_modulo), "puntaje": int(puntaje),
         "precision_pct": int(precision_pct), "metadata_juego": metadata_juego
     }
-    try:
-        # Los registros históricos corren en un hilo secundario rápido
-        threading.Thread(
-            target=lambda: supabase.table("historial_juegos").insert(payload).execute(),
-            daemon=True
-        ).start()
-        return True
-    except Exception:
-        return False
+    _supabase_rest_post("historial_juegos", payload)
+    return True
 
 def generar_token(dias: int) -> str:
-    """Genera una licencia mapeada explícitamente y aislada del hilo de red de Streamlit."""
+    """Genera una licencia localmente y la envía a la nube mediante HTTP síncrono seguro."""
     token = f"ML-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
     
@@ -140,13 +153,13 @@ def generar_token(dias: int) -> str:
         st.error(f"Error al generar licencia en almacenamiento local: {str(e)}")
         return ""
         
-    # Inyección remota aislada en un hilo Daemon independiente para evitar caídas de entorno
+    # Registro en la nube libre de conflictos de hilos
     payload_remoto = {
         "token": token, "en_uso": 0, "fecha_expiracion": fecha_exp, 
         "score_puntos": 0, "vidas": 3, "modulo_actual": "1", 
         "intentos_quiz": 0, "tiempo_estudio_min": 0, "errores_quiz": 0
     }
-    threading.Thread(target=_insertar_supabase_bg, args=(payload_remoto,), daemon=True).start()
+    _supabase_rest_post("tokens_acceso", payload_remoto)
             
     return token
 
@@ -168,7 +181,6 @@ def eliminar_token(token: str):
             c.execute("DELETE FROM tokens_acceso WHERE token = ?", (token,))
             conn.commit()
         
-        # Eliminación remota segura
-        threading.Thread(target=_eliminar_supabase_bg, args=(token,), daemon=True).start()
+        _supabase_rest_delete("tokens_acceso", "token", token)
     except sqlite3.Error as e:
         st.error(f"No se pudo eliminar la licencia de la matriz: {str(e)}")
