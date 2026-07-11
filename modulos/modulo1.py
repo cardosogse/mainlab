@@ -1,17 +1,11 @@
 import streamlit as st
-
-# Importaciones directas y seguras de los submódulos de trabajo
 from modulos import m1_dia1, m1_dia2, m1_dia3, m1_dia4, m1_dia5, m1_dia6
 
 def mostrar_modulo1():
-    """
-    Función orquestadora de la Unidad 1.
-    Controla el menú lateral y enruta el tráfico hacia el día correspondiente.
-    """
+    """Orquestador central del menú lateral para la navegación de la Unidad 1."""
     st.sidebar.markdown("---")
     st.sidebar.subheader("🧬 U1: Agua y Equilibrio Ácido-Base")
     
-    # Menú unificado alineado al plan de estudios FMVZ UNAM
     menu_unidad1 = [
         "Día 1: Bioelementos e Ionización",
         "Día 2: Enlaces Químicos y Polaridad",
@@ -26,7 +20,6 @@ def mostrar_modulo1():
     st.sidebar.markdown("---")
     st.sidebar.caption("🔬 FMVZ UNAM - Bioquímica Celular")
 
-    # Enrutamiento lógico exacto
     if eleccion == "Día 1: Bioelementos e Ionización":
         m1_dia1.app()
     elif eleccion == "Día 2: Enlaces Químicos y Polaridad":
