@@ -53,12 +53,8 @@ def app():
     inicializar_estado_dia7()
     token_alumno = st.session_state.get("token_actual", "DEMO")
     
-    enfoque = st.radio(
-        "🔬 Configurar el Espectrómetro de Hibridación:", 
-        ["🐾 Veterinaria", "🩺 Medicina", "🧬 Biología"], 
-        horizontal=True,
-        key="d7_enfoque_radio"
-    )
+    # --- CAPA 2: LECTURA DIRECTA DEL ENFOQUE GLOBAL DESACOPLADO ---
+    enfoque = st.session_state.get("enfoque_global", "🐾 Veterinaria")
     
     t_teoria, t_juego, t_quiz = st.tabs(["🔬 Arquitectura Funcional", "🎮 Desafío Estereoquímico", "📝 Certificación"])
 
@@ -74,6 +70,19 @@ def app():
 
         st.markdown("---")
         st.markdown("#### 🔬 Simulador de Isomería Espacial e Hibridación Carbonada")
+        
+        # --- ARQUITECTURA DE INSTRUCCIONES OPERACIONALES CLARAS ---
+        st.markdown(
+            """
+            <div style='background-color:rgba(0,242,254,0.05); padding:12px; border-radius:8px; border:1px solid rgba(0,242,254,0.2); margin-bottom:15px;'>
+            <strong>📋 PROTOCOLO DE ANÁLISIS ESTEREOQUÍMICO:</strong><br>
+            1. Modifica de forma independiente los 4 selectores para alterar los radicales unidos al carbono central.<br>
+            2. El transductor determinará si el arreglo genera un <strong>centro quiral asimétrico</strong> ($C^*$) con actividad óptica celular o si la molécula es simétrica (aquiral).
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+        
         st.latex(r"\text{Carbono Quiral: } C^* \rightarrow 4 \text{ Radicales Diferentes } (R_1 \neq R_2 \neq R_3 \neq R_4)")
         
         rad1 = st.selectbox("Sustituyente 1:", ["-H", "-OH", "-COOH", "-NH₂"], index=0, key="d7_s1")
