@@ -16,7 +16,8 @@ class ControlEstadoGlobal:
             'auth': None, 'token_actual': None, 'procesando': False,
             'puntos_acumulados': 0, 'vidas': 3, 'tiempo_historico_min': 0,
             'tiempo_estudio_min': 0, 'inicio_sesion_unix': None, 'modulo_actual': "1",
-            'ultimo_token_generado': None
+            'ultimo_token_generado': None,
+            'enfoque_global': "🐾 Veterinaria"  # Inicialización fija de la Capa 2
         }
         for clave, valor_defecto in esquema_estados.items():
             if clave not in st.session_state:
@@ -47,14 +48,12 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- PANEL DE ACCESO PURIFICADO Y DESACOPLADO EN PESTAÑAS ---
+# --- PANEL DE ACCESO DESACOPLADO EN PESTAÑAS (NO LOGUEADO) ---
 if st.session_state['auth'] is None:
-    
-    # Separación absoluta en pestañas para evitar el amontonamiento visual en celulares
     tab_acceso, tab_demo = st.tabs(["🔑 Acceso al Laboratorio", "🔬 Probar Analizador"])
     
     with tab_acceso:
-        st.write("") # Espaciador estético leve
+        st.write("") 
         credencial = st.text_input(
             "Introduce tu Licencia o Clave Maestra:", 
             type="password", 
@@ -81,7 +80,7 @@ if st.session_state['auth'] is None:
                     st.error("❌ Credencial inválida o vencida.")
                     
     with tab_demo:
-        st.write("") # Espaciador estético leve
+        st.write("") 
         st.caption("Prueba el potencial del laboratorio interactivo antes de ingresar tu licencia clínica:")
         
         grupo_test = st.selectbox(
@@ -169,11 +168,12 @@ elif st.session_state['auth'] == 'admin':
             st.error(f"🚨 Error crítico en el monitoreo: {str(ex)}")
             st.text(traceback.format_exc())
 
-# --- VISTA DEL ALUMNO ---
+# --- VISTA DEL ALUMNO (ENTORNO PERSISTENTE DE TRABAJO) ---
 elif st.session_state['auth'] == 'usuario':
     minutos_de_sesion = int((time.time() - st.session_state['inicio_sesion_unix']) / 60)
     st.session_state['tiempo_estudio_min'] = st.session_state['tiempo_historico_min'] + minutos_de_sesion
     
+    # Marcador de Triage Médico/Clínico responsivo
     st.markdown("<div class='dashboard-triage'>", unsafe_allow_html=True)
     c_tk, c_vd, c_pt, c_tm = st.columns(4)
     c_tk.metric("🔬 Licencia Activa", st.session_state['token_actual'])
@@ -185,5 +185,15 @@ elif st.session_state['auth'] == 'usuario':
     if st.session_state['vidas'] <= 0:
         st.error("🚨 **ACCESO SUSPENDIDO:** El alumno ha agotado su vitalidad metabólica. Contacta al docente.")
     else:
+        # --- CAPA 2: INTERRUPTOR MAESTRO DEL ENFOQUE BIOMÉDICO ---
+        st.session_state.enfoque_global = st.radio(
+            "🔬 Ajustar el Espectro de Especialidad Médica / Zootécnica:",
+            ["🐾 Veterinaria", "🩺 Medicina", "🧬 Biología"],
+            horizontal=True,
+            key="control_central_enfoque_global"
+        )
+        st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
+        
+        # Invocación dinámica de la capa de visualización curricular
         from modulos.modulo1 import app as enrutador_modulo1
         enrutador_modulo1()
