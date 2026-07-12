@@ -17,16 +17,13 @@ def inicializar_estado_dia1():
         st.session_state.d1_retroalimentacion = None
 
 def obtener_datos_elemento(protones: int):
-    """
-    Matriz analítica de bioelementos esenciales con relevancia fisiológica de alta jerarquía.
-    Mapea el número atómico (Z) contra las tarjetas adaptativas profesionales.
-    """
+    """Matriz analítica de bioelementos esenciales con relevancia fisiológica y clínica."""
     tabla = {
         1: {
             "nombre": "Hidrógeno", "simbolo": "H", "base_neutrones": 0,
-            "🐾 Veterinaria": "El ion $\\text{H}^+$ determina la escala de pH ruminal; desbalances fermentativos crónicos por dietas ricas en concentrados inducen acidosis ruminal aguda.",
-            "🩺 Medicina": "La fluctuación de protones $\\text{H}^+$ en el plasma altera la afinidad de la hemoglobina por el oxígeno en los tejidos metabólicamente activos (Efecto Bohr).",
-            "🧬 Biología": "El gradiente electroquímico transmembranal de protones $\\text{H}^+$ es la fuerza motriz que acopla el giro de la ATP sintasa mitocondrial."
+            "🐾 Veterinaria": "El ion H⁺ determina la escala de pH ruminal; desbalances fermentativos crónicos por dietas ricas en concentrados inducen acidosis ruminal aguda.",
+            "🩺 Medicina": "La fluctuación de protones H⁺ en el plasma altera la afinidad de la hemoglobina por el oxígeno en los tejidos metabólicamente activos (Efecto Bohr).",
+            "🧬 Biología": "El gradiente electroquímico transmembranal de protones H⁺ es la fuerza motriz que acopla el giro de la ATP sintasa mitocondrial."
         },
         6: {
             "nombre": "Carbono", "simbolo": "C", "base_neutrones": 6,
@@ -42,21 +39,21 @@ def obtener_datos_elemento(protones: int):
         },
         8: {
             "nombre": "Oxígeno", "simbolo": "O", "base_neutrones": 8,
-            "🐾 Veterinaria": "Indispensable para el metabolismo tisular; aves comerciales seleccionadas genéticamente sufren de síndrome ascítico por alta demanda de $\\text{O}_2$.",
+            "🐾 Veterinaria": "Indispensable para el metabolismo tisular; aves comerciales seleccionadas genéticamente sufren de síndrome ascítico por alta demanda de O₂.",
             "🩺 Medicina": "Aceptor final de electrones en la cadena respiratoria. Su privación induce hipoxia tisular y detiene la fosforilación oxidativa.",
             "🧬 Biología": "Su elevada electronegatividad genera la asimetría electrónica de carga parcial en los enlaces intramolares del agua."
         },
         12: {
             "nombre": "Magnesio", "simbolo": "Mg", "base_neutrones": 12,
-            "🐾 Veterinaria": "La caída súbita de $\\text{Mg}^{2+}$ provoca 'tetania de los pastos' en bovinos, caracterizada por rigidez muscular e hiperexcitabilidad sináptica.",
+            "🐾 Veterinaria": "La caída súbita de Mg²⁺ provoca 'tetania de los pastos' en bovinos, caracterizada por rigidez muscular e hiperexcitabilidad sináptica.",
             "🩺 Medicina": "Actúa como un antagonista fisiológico natural de los canales de calcio; estabiliza el potencial de acción celular miocárdico.",
-            "🧬 Biología": "Cofactor obligatorio encargado de coordinar y estabilizar las cargas electrostáticas negativas de los grupos fosfato en el $\\text{ATP}$."
+            "🧬 Biología": "Cofactor obligatorio encargado de coordinar y estabilizar las cargas electrostáticas negativas de los grupos fosfato en el ATP."
         },
         15: {
             "nombre": "Fósforo", "simbolo": "P", "base_neutrones": 16,
             "🐾 Veterinaria": "El desbalance crónico en la relación dietaria Calcio:Fósforo induce hiperparatiroidismo secundario nutricional (osteodistrofia fibrosa).",
             "🩺 Medicina": "Componente principal del sistema amortiguador intracelular y urinario, manteniendo el equilibrio ácido-base renal.",
-            "🧬 Biología": "Enlazado covalentemente mediante uniones fosfodiéster de alta energía que estructuran el chasis del $\\text{ADN}$ y $\\text{ARN}$."
+            "🧬 Biología": "Enlazado covalentemente mediante uniones fosfodiéster de alta energía que estructuran el chasis del ADN y ARN."
         },
         16: {
             "nombre": "Azufre", "simbolo": "S", "base_neutrones": 16,
@@ -67,7 +64,7 @@ def obtener_datos_elemento(protones: int):
         17: {
             "nombre": "Cloro", "simbolo": "Cl", "base_neutrones": 18,
             "🐾 Veterinaria": "El secuestro abomasal de fluidos por torsión gástrica desencadena una alcalosis metabólica hipoclorémica grave en rumiantes.",
-            "🩺 Medicina": "Principal anión del líquido extracelular, crucial para el mantenimiento de la osmolaridad y la síntesis gástrica de $\\text{HCl}$.",
+            "🩺 Medicina": "Principal anión del líquido extracelular, crucial para el mantenimiento de la osmolaridad y la síntesis gástrica de HCl.",
             "🧬 Biología": "Modula el potencial eléctrico postsináptico; su flujo transmembranal selectivo hiperpolariza la membrana plasmática neuronal."
         },
         20: {
@@ -82,25 +79,21 @@ def obtener_datos_elemento(protones: int):
 def app():
     inicializar_estado_dia1()
     token_alumno = st.session_state.get("token_actual", "DEMO")
-    
-    # CAPA 2: Lectura directa y limpia del enfoque global del chasis raíz
     enfoque = st.session_state.get("enfoque_global", "🐾 Veterinaria")
     
-    tab1, tab2, tab3 = st.tabs(["📚 Marco Teórico de Alta Jerarquía", "🔬 Espectrómetro Cuántico", "📝 Evaluación Formativa"])
+    tab1, tab2, tab3 = st.tabs(["📚 Principios y Fundamentos", "🔬 Espectrómetro Cuántico", "📝 Evaluación Formativa"])
 
     with tab1:
-        st.markdown("## Fundamentos Químicos: Balance Iónico y Estructura Atómica")
+        st.markdown("## Fundamentos Químicos de la Homeostasis Fisiológica")
         
-        # --- LITERATURA DE ALTA JERARQUÍA REFERENCIADA ---
+        # --- TEORÍA REFORMULADA A PRINCIPIOS BIOQUÍMICOS PUROS ---
         st.markdown(
-            r"""
-            > **La Lógica Molecular de la Vida (Lehninger):** Los organismos vivos son sistemas termodinámicamente abiertos que 
-            > operan en un estado estacionario dinámico. La homeostasis celular se mantiene mediante el intercambio metabólico 
-            > controlado de electrones y la disociación selectiva de bioelementos en especies ionizadas activas.
+            """
+            ### 🛠️ Principio 1: La Lógica Molecular del Estado Estacionario
+            Los sistemas biológicos celulares funcionan como **sistemas termodinámicamente abiertos**. Para evitar el equilibrio entrópico (muerte celular), la homeostasis se sostiene mediante un flujo constante de electrones a través de membranas lipídicas y la compartimentación de especies químicas cargadas.
             
-            > **La Matriz Fisiológica (Harper):** Los bioelementos esenciales no se distribuyen en estado molecular neutro dentro de los 
-            > compartimentos celulares. Existen disociados en forma de **iones** debido a la ganancia o pérdida selectiva de electrones 
-            > de valencia, alterando la presión osmótica y los potenciales de membrana electroquímicos.
+            ### ⚖️ Principio 2: El Balance Electrostático de la Matriz Fluida
+            En los compartimentos líquidos del organismo, los bioelementos esenciales no actúan en estado molecular neutro. Se encuentran en su totalidad disociados en forma de **iones** (electrólitos). La ganancia o pérdida selectiva de electrones periféricos altera las fuerzas electrostáticas, dictando la presión osmótica de los fluidos y la polarización eléctrica celular.
             """
         )
         
@@ -109,56 +102,54 @@ def app():
             st.markdown(
                 "<div class='lab-panel' style='border-left: 4px solid #00f2fe;'>"
                 "<h4 style='color:#00f2fe; margin-top:0;'>Catión (+)</h4>"
-                "<p style='font-size:0.9rem; margin-bottom:0;'>Especie química que experimentó la <strong>pérdida de electrones</strong>. "
-                "Predominan las cargas del núcleo.<br><em>Ejemplos:</em> $\\text{Na}^+$, $\\text{K}^+$, $\\text{Ca}^{2+}$.</p></div>", 
+                "<p style='font-size:0.9rem; margin-bottom:0;'>Especie química que experimentó la <strong>pérdida de electrones de valencia</strong>. "
+                "Predomina la carga positiva del núcleo atómico.<br><br><em>Ejemplos clínicos:</em> Na⁺, K⁺, Ca²⁺, Mg²⁺.</p></div>", 
                 unsafe_allow_html=True
             )
         with col_t2:
             st.markdown(
                 "<div class='lab-panel' style='border-left: 4px solid #ff0844;'>"
                 "<h4 style='color:#ff0844; margin-top:0;'>Anión (-)</h4>"
-                "<p style='font-size:0.9rem; margin-bottom:0;'>Especie química que experimentó la <strong>ganancia de electrones</strong>. "
-                "Carga electrónica externa predominante.<br><em>Ejemplos:</em> $\\text{Cl}^-$, $\\text{HCO}_3^-$.</p></div>", 
+                "<p style='font-size:0.9rem; margin-bottom:0;'>Especie química que experimentó la <strong>ganancia de electrones periféricos</strong>. "
+                "Carga electrónica externa predominante.<br><br><em>Ejemplos clínicos:</em> Cl⁻, HCO₃⁻, HPO₄²⁻.</p></div>", 
                 unsafe_allow_html=True
             )
 
     with tab2:
         st.markdown("### 🔬 Simulador Atómico de Carga y Masa")
         
-        # --- MARQUESINA DE INSTRUCCIONES CLARAS PARA EL ALUMNO ---
         st.markdown(
             """
             <div style='background-color:rgba(0,242,254,0.05); padding:12px; border-radius:8px; border:1px solid rgba(0,242,254,0.2); margin-bottom:15px;'>
-            <strong>📋 MANUAL DE OPERACIÓN CIENTÍFICA:</strong><br>
-            1. <strong>Identidad (Z):</strong> Ajusta los Protones para sintonizar el bioelementos de la tabla periódica.<br>
-            2. <strong>Masa (A):</strong> Modifica los Neutrones para alterar el peso del núcleo (Estabilización de Isótopos).<br>
-            3. <strong>Tonicidad:</strong> Sintoniza los Electrones para ionizar el átomo y activar su tarjeta clínica.
+            <strong>📋 PROTOCOLO OPERACIONAL DEL ESPECTRÓMETRO:</strong><br>
+            1. <strong>Identidad Atómica (Z):</strong> Modifica los Protones para definir el bioelemento esencial.<br>
+            2. <strong>Estabilidad Isotópica (A):</strong> Modifica los Neutrones para balancear la masa total del núcleo.<br>
+            3. <strong>Estado de Ionización:</strong> Modifica los Electrones para cargar la especie y activar la lectura médica.
             </div>
             """, 
             unsafe_allow_html=True
         )
         
         col_p, col_n, col_e = st.columns(3)
-        protones = col_p.slider("🔴 Protones (Número Atómico Z):", min_value=1, max_value=20, value=11, key="d1_sl_p")
-        neutrones = col_n.slider("🔘 Neutrones (Masa Nuclear N):", min_value=0, max_value=22, value=12, key="d1_sl_n")
-        electrones = col_e.slider("🔵 Electrones (Orbitales e⁻):", min_value=1, max_value=20, value=10, key="d1_sl_e")
+        protones = col_p.slider("🔴 Protones (Número Atómico Z):", min_value=1, max_value=20, value=8, key="d1_sl_p")
+        neutrones = col_n.slider("🔘 Neutrones (Masa Nuclear N):", min_value=0, max_value=22, value=8, key="d1_sl_n")
+        electrones = col_e.slider("🔵 Electrones (Orbitales e⁻):", min_value=1, max_value=20, value=8, key="d1_sl_e")
 
-        # Cálculos cuánticos y de estabilidad
         carga_neta = protones - electrones
         numero_masa = protones + neutrones
         info_elemento = obtener_datos_elemento(protones)
         
         if carga_neta > 0:
-            estado_ion = f"**Catión (+)** con carga de ${carga_neta:+}$"
-            formula_visual = f"\\text{{{info_elemento['simbolo']}}}^{{{carga_neta}+}}"
+            estado_ion = f"**Catión (+)** con carga de {carga_neta:+}"
+            formula_visual = f"{info_elemento['simbolo']}^{{{carga_neta}+}}"
         elif carga_neta < 0:
-            estado_ion = f"**Anión (-)** con carga de ${carga_neta}$"
-            formula_visual = f"\\text{{{info_elemento['simbolo']}}}^{{{abs(carga_neta)}-}}"
+            estado_ion = f"**Anión (-)** con carga de {carga_neta}"
+            formula_visual = f"{info_elemento['simbolo']}^{{{abs(carga_neta)}-}}"
         else:
             estado_ion = "**Átomo Neutro (0)**"
-            formula_visual = f"\\text{{{info_elemento['simbolo']}}}"
+            formula_visual = info_elemento['simbolo']
 
-        # --- CAPA 3: FILTRO DE INESTABILIDAD BIOLÓGICA ---
+        # Filtro de exclusión biológica
         es_inestable = False
         mensaje_error = ""
         
@@ -184,9 +175,6 @@ def app():
             unsafe_allow_html=True
         )
 
-    with tab2.values()[0] if hasattr(tab2, 'values') else tab2: # Resguardo de flujo
-        pass
-
     with tab3:
         st.markdown("### 📝 Cuestionario de Certificación")
         
@@ -202,8 +190,8 @@ def app():
         
         bloqueado = st.session_state.d1_quiz_enviado
 
-        q1 = st.radio("1. De acuerdo con el marco de Harper, ¿qué alteración fisicoquímica experimenta un átomo de Calcio plasmático para actuar como el catión activo $\\text{Ca}^{2+}$?", ["A) Perdió 2 electrones de valencia, predominando las cargas positivas del núcleo.", "B) Absorbió 2 electrones libres del medio citosólico.", "C) El núcleo atómico expulsó 2 protones al espacio intersticial."], disabled=bloqueado, key="d1_q1_r")
-        q2 = st.radio("2. Un bioelemento detectado por el espectrómetro en una muestra biológica presenta 12 protones en su núcleo y 10 electrones en su nube de valencia. Determina su identidad estructural:", ["A) Es un anión estable de Cloro.", "B) Es el catión Magnesio $\\text{Mg}^{2+}$ esencial como cofactor del ATP.", "C) Es un átomo neutro altamente reactivo."], disabled=bloqueado, key="d1_q2_r")
+        q1 = st.radio("1. De acuerdo con los principios de balance electrostático, ¿qué alteración fisicoquímica experimenta un átomo de Calcio plasmático para actuar como el catión activo Ca²⁺?", ["A) Perdió 2 electrones de valencia, predominando las cargas positivas del núcleo.", "B) Absorbió 2 electrones libres del medio citosólico.", "C) El núcleo atómico expulsó 2 protones al espacio intersticial."], disabled=bloqueado, key="d1_q1_r")
+        q2 = st.radio("2. Un bioelemento detectado por el espectrómetro en una muestra biológica presenta 12 protones en su núcleo y 10 electrones en su nube de valencia. Determina su identidad estructural:", ["A) Es un anión estable de Cloro.", "B) Es el catión Magnesio Mg²⁺ esencial como cofactor del ATP.", "C) Es un átomo neutro altamente reactivo."], disabled=bloqueado, key="d1_q2_r")
 
         if bloqueado and st.session_state.d1_retroalimentacion:
             prec = st.session_state.d1_retroalimentacion["precision"]
