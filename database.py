@@ -17,7 +17,7 @@ SUPABASE_URL = obtener_llave_secreta("supabase", "SUPABASE_URL")
 SUPABASE_KEY = obtener_llave_secreta("supabase", "SUPABASE_KEY")
 DB_NAME = "mainlab_v3.db"
 
-# --- CAPA REST CON DIAGNÓSTICO ACTIVO ---
+# --- CAPA DE CONEXIÓN REST CON LA NUBE (SUPABASE) ---
 def _supabase_rest_post(tabla: str, payload: dict):
     if not SUPABASE_URL or not SUPABASE_KEY: return
     try:
@@ -100,7 +100,7 @@ def _supabase_rest_get_todo(tabla: str):
         st.error(f"🚨 Fallo de conexión de red con la nube (GET ALL): {str(e)}")
     return []
 
-# --- CONTROLADORES LOCALES ---
+# --- CONTROLADORES LOCALES (SQLITE3) ---
 def _ejecutar_sql_lectura(query: str, params: tuple = ()):
     try:
         with sqlite3.connect(DB_NAME, timeout=10) as conn:
@@ -158,7 +158,7 @@ def validar_token(token: str):
             (token, en_uso, fecha_expiracion, score_puntos, vidas, modulo_actual, intentos_quiz, tiempo_estudio_min, errores_quiz) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        # Adaptación de lectura: mapea errores_quizz (nube) a errores_quiz (local)
+        # HOMOLOGACIÓN TRADUCTORA: Convierte 'errores_quizz' de Supabase a 'errores_quiz' local
         _ejecutar_sql_escritura(query_insert, (
             token,
             registro_nube.get("en_uso", 0),
@@ -202,7 +202,6 @@ def guardar_registro_juego(alumno_id: str, dia_modulo: int, puntaje: int, precis
     return True
 
 def generar_token(dias: int) -> str:
-    """Genera una licencia localmente y la envía a la nube adaptándose al nombre de columna remoto."""
     token = f"ML-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
     fecha_exp = (datetime.date.today() + timedelta(days=dias)).strftime("%Y-%m-%d")
     
@@ -215,7 +214,6 @@ def generar_token(dias: int) -> str:
     if not exito:
         return ""
         
-    # ADAPTACIÓN DE ESCRITURA: Cambiamos errores_quiz por errores_quizz para la nube
     payload_remoto = {
         "token": token, "en_uso": 0, "fecha_expiracion": fecha_exp, 
         "score_puntos": 0, "vidas": 3, "modulo_actual": "1", 
